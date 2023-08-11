@@ -3,6 +3,18 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+#SAMPLING
+sampling/
+
+#DSTORE
+.DS_Store
+
+#PYCHARM
+.idea/
+
+#ENV
+shockcool/
+
 # C extensions
 *.so
 

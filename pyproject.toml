@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shock_cooling_curve"
+version = "0.0.1"
+dependencies = [
+    'importlib-metadata >= 1.0 ; python_version < "3.8"'
+]
+description = "A python module used to model the shock cooling emission from a double-peaked core collapse supernova."
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.8"
+keywords = ["core collapse supernovae", "shock cooling emission", "double peaked lightcurves",
+    "non linear least curve modelling", "MCMC sampling"
+]
+
+license = {text = "MIT License"}
+authors = [
+    {name = "Padma Venkatraman", email = "vpadma@berkeley.edu"},
+    {name = "Wynn Jacabson Galan", email = "wynnjg@berkeley.edu"}
+]
+
+maintainers = [
+  {name = "Padma Venkatraman", email = "vpadma@berkeley.edu"}
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    'Operating System :: MacOS :: MacOS X',
+    'Operating System :: Microsoft :: Windows'
+]
+
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/padma18-vb/shock-cooling"
+
+
+
