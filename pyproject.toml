@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shock_cooling_curve"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
     'importlib-metadata >= 1.0 ; python_version < "3.8"'
 ]
@@ -35,6 +35,6 @@ classifiers = [
 Repository = "https://github.com/padma18-vb/shock-cooling"
 
 [tool.setuptools.packages.find]
-where = ["shock_cooling_curve"]
+where = ["src"]
 
 
