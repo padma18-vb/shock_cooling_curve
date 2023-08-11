@@ -1,5 +1,7 @@
 import argparse
+from shock_cooling_curve.models import PIRO_2020
 from shock_cooling_curve.models import PIRO_2015
+
 from shock_cooling_curve import fitter
 
 if __name__ == '__main__':
@@ -17,10 +19,10 @@ if __name__ == '__main__':
 
     CONF = 'config.ini'
     FOLD = '../data/2021gno'
-    an_obj = PIRO_2015.PIRO_2015(CONF, "/Users/padmavenkatraman/Documents/Supernovae/"
+    an_obj = PIRO_2020.PIRO_2020(CONF, "/Users/padmavenkatraman/Documents/Supernovae/"
                                        "SC_Modeling/SC_Notebooks/shock-cooling/data/2021gno/")
     test_fitter = fitter.Fitter(an_obj)
-    # test_fitter.MCMC_fit(prior_low=P20_low, prior_high=P20_high)
+    test_fitter.MCMC_fit(prior_low=P20_low, prior_high=P20_high)
     # print(utils.msun)
     # print(utils.h, utils.k, utils.c)
 

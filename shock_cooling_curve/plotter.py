@@ -140,14 +140,13 @@ class Plotter:
             p = self.params[i]
             axs[i].plot(self.sn_obj.MCMC_sampler[p], color='k', alpha=0.5);
             axs[i].set_title(f"Parameter = {p}")
-        plt.show()
         return fig
 
     def MCMC_corner(self):
         samples = self.sn_obj.samp_chain[:, 100:, :].reshape((-1, self.n_params))
         fig = cn.corner(
             samples,
-            ["re", "me", "ve", "off"],
+            labels = self.MCMC_labels,
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12, "loc": "left"})

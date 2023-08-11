@@ -143,6 +143,11 @@ class Fitter:
                 self.prior_high = self.sn_obj.fitted_params + 5 * self.sn_obj.fitted_errors
 
         p = np.array(p)
+        print("parameters = ", p)
+        print("prior_low", self.prior_low)
+        print("prior_high", self.prior_high)
+        print(p > self.prior_low, p < self.prior_high)
+        print(np.all(p > self.prior_low) and np.all(p < self.prior_high))
         if np.all(p > self.prior_low) and np.all(p < self.prior_high):
             print("yes")
             return 0.0

@@ -31,10 +31,10 @@ classifiers = [
     'Operating System :: Microsoft :: Windows'
 ]
 
-dynamic = ["version"]
-
 [project.urls]
 Repository = "https://github.com/padma18-vb/shock-cooling"
 
+[tool.setuptools.packages.find]
+where = ["shock_cooling_curve"]
 
 

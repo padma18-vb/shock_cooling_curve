@@ -6,7 +6,7 @@ class SW_BSG(Supernova):
         super().__init__(config_file, path_storage)
         self.set_model()
         self.units = {'re': 'R_sun', 'me': 'M_sun', 've': '1e9 cm/s', 'Off': 'days'}
-        self.scale = {'re': 1e13/utils.rsun, 'me': 1, 've': 1*10**8.5, 'Off': 1}
+        self.scale = {'re': 1e13/utils.rsun, 'me': 1, 've': 1*10**8.5/(10**9), 'Off': 1}
 
         self.display_name = 'Sapir & Waxman [n = 3]' # usually class.model_name returns str(class name)
 

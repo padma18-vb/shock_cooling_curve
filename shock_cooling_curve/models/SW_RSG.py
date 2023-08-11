@@ -7,7 +7,7 @@ class SW_RSG(Supernova):
         # sapir waxman: m = solar masses; r = r*10^13/rsun; v = 10^9cm/s
         self.units = {'re': 'R_sun', 'me': 'M_sun', 've': '1e9 cm/s', 'Off': 'days'}
         # TODO: ASK WYNN IF THIS SCALING IS RIGHT
-        self.scale = {'re': 1e13/utils.rsun, 'me': 1, 've': 1*10**8.5, 'Off': 1}
+        self.scale = {'re': 1e13/utils.rsun, 'me': 1, 've': 1*10**8.5/(10**9), 'Off': 1}
 
         self.display_name = 'Sapir & Waxman [n = 1.5]' # usually class.model_name returns str(class name)
         self.initial = [2, 0.5, 2, 0.01]

@@ -45,6 +45,12 @@ class Supernova(object):
     """
 
     def __init__(self, config_file, path_to_storage = None):
+        """
+        Initializes supernova object.
+        :param config_file: Name of config file.
+        :param path_to_storage: Path to where the config file and data file are stored. Assumed to be local directory.
+        :return: None
+        """
         self.config_file = config_file
         self.path_to_storage = path_to_storage
         self.folder = re.split("/", self.path_to_storage)[-1]
@@ -58,7 +64,10 @@ class Supernova(object):
 
 
     def _make_dict(self):
-        '''This function parses the config file into a usable dictionary.'''
+        """
+        This function parses the config file into a usable dictionary.
+        :return: dictionary containing key-value pairs read in from config file.
+        """
 
         config_file = (os.path.join(self.path_to_storage, self.config_file))
         config = configparser.ConfigParser()
@@ -75,12 +84,20 @@ class Supernova(object):
         return details_dict
 
     def _controls(self):
+        """
+        Helper function used to carry out initial data reduction operations.
+        All main operations are called here to switch on and off functionality as needed.
+        :return: None
+        """
         self._assert_params()
         self._build_df()
         self._build_bandpass()
-        self._validate()
 
     def _assert_params(self):
+        """
+        Helper function used to calibrate and maintain global parameters. Configures input data.
+        :return: None
+        """
         self.a_v = self.ebv_mw * 3.1
         self.a_v_host = self.ebv_host * 3.1
         self.dsn = self.dist_sn * 3.086e+24  # cm
@@ -96,34 +113,65 @@ class Supernova(object):
         self.shift_date_colname = 'MJD_S'
         self.filter_info = utils.filter_info
 
-    def _validate(self):
-        return
-
     def make_path(self, filename):
+        """
+        Helper function used to store any generated data in the same directory as data source
+        :param filename: Name of generated file. Example: test_plot.png
+        :return: OS Path to data origin folder with new file joined to the path.
+        """
         return os.path.join(self.path_to_storage, filename)
 
     def set_mag_colname(self, name='MAG'):
+        """
+        Setter: sets the magnitude column name. Defaults to "MAG", assumes that initial input data has "MAG" column,
+        but once the data is read in, column names can be changed and reassigned using this function.
+        """
         self.mag_colname = name
 
     def set_magerr_colname(self, name='MAGERR'):
+        """
+        Setter: sets the magnitude error column name. Defaults to "MAGERR", assumes that initial input data has
+        "MAGERR" column, but once the data is read in, column names can be changed and reassigned using this function.
+        """
         self.magerr_colname = name
 
     def set_date_colname(self, name='MJD'):
+        """
+        Setter: sets the date (in MJD) column name. Defaults to "MJD", assumes that initial input data has
+        "MJD" column, but once the data is read in, column names can be changed and reassigned using this function.
+        """
         self.date_colname = name
 
     def set_flt_colname(self, name='FLT'):
+        """
+        Setter: sets the filter column name. Defaults to "FLT", assumes that initial input data has
+        "FLT" column, but once the data is read in, column names can be changed and reassigned using this function.
+        """
         self.flt_colname = name
 
     def set_vega_colname(self, name='Vega'):
+        """
+        Setter: sets the boolean valued vega column name. Defaults to "Vega", assumes that initial input data has
+        "Vega" column, but once the data is read in, column names can be changed and reassigned using this function.
+        """
         self.vega_colname = name
 
     def convertAB_Vega(self, flt, mag, vega):
+        """
+        :param flt: Filter in which measurement is made
+        :param mag: Magnitude measurement
+        :param vega: Boolean value: 1 = vega magnitude; 0 = AB magnitude.
+        Helper function used to convert Vega magnitudes to AB.
+        """
         if vega:
             mag += self.filter_info.loc[flt]['AB - Vega']
             return mag
         return mag
 
     def add_red_mag(self, df):
+        """
+
+        """
         # makes no change to original data frame for future reference for user
         dfnew = df.copy()
         mags = np.array(dfnew[self.mag_colname])
