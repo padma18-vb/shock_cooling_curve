@@ -4,11 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shock_cooling_curve"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
-    'importlib-metadata >= 1.0 ; python_version < "3.8"'
+    'importlib-metadata >= 1.0 ; python_version < "3.8"',
+    'numpy',
+    'scipy',
+    'matplotlib',
+    'pysynphot',
+    'configparser',
+    'regex',
+    'corner',
+    'pandas',
+    'extinction',
+    'IPython',
 ]
-description = "A python module used to model the shock cooling emission from a double-peaked core collapse supernova."
+description = "A python module used to model the shock cooling emission from double-peaked supernovae."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.8"
 keywords = ["core collapse supernovae", "shock cooling emission", "double peaked lightcurves",
@@ -34,7 +44,16 @@ classifiers = [
 [project.urls]
 Repository = "https://github.com/padma18-vb/shock-cooling"
 
+
 [tool.setuptools.packages.find]
+# scanning for namespace packages is true by default in pyproject.toml, so
+# you do NOT need to include the following line.
+namespaces = true
 where = ["src"]
+
+[tool.setuptools.package-data]
+shock_cooling_curve = ["*.csv"]
+"shock_cooling_curve.filters" = ["*/*.dat"]
+
 
 

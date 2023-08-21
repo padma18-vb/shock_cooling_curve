@@ -2,19 +2,20 @@
 
 # PATH MANIPULATION
 import os.path
+import os
+# HIDING LONG PROCESSING OR OUTPUT MESSAGES
+from IPython.utils import io
 
 # ARRAY OPERATIONS
 import numpy as np
 
 # IMPORT UTILS
 # INTERNAL IMPORT
-from shock_cooling_curve.utils import utils
-
+from src.shock_cooling_curve.utils import utils
 # DATAFRAME HANDLING
 import pandas as pd
 
-# HIDING LONG PROCESSING OR OUTPUT MESSAGES
-from IPython.utils import io
+
 
 # READING IN USER INPUT
 import configparser
@@ -31,7 +32,7 @@ import re
 from importlib import resources
 
 # STORING FILTER DIRECTORY
-filter_dir = 'shock_cooling_curve/filters/'
+filter_dir = 'src/shock_cooling_curve/filters/'
 
 
 
@@ -53,6 +54,7 @@ class Supernova(object):
         """
         self.config_file = config_file
         self.path_to_storage = path_to_storage
+
         self.folder = re.split("/", self.path_to_storage)[-1]
         d = self._make_dict()
         for a, b in d.items():
@@ -102,6 +104,11 @@ class Supernova(object):
         self.a_v_host = self.ebv_host * 3.1
         self.dsn = self.dist_sn * 3.086e+24  # cm
         self.model_name = self.__class__.__name__
+        try:
+            self.params = list(self.units.keys())
+            self.n_params = len(self.params)
+        except:
+            print('None of the existing models (PIRO 2015/2020 or S&W 2017) have been used to create this object.')
 
         # set table input columns
         self.set_mag_colname()
@@ -234,6 +241,7 @@ class Supernova(object):
             bandpass = self.filter_info.loc[flt]['Bandpass']
             try:
                 flt_filename =f'{filter_dir}{bandpass}_Filters/{bandpass}.{flt}.dat'
+                
                 filter_files[flt] = np.genfromtxt(flt_filename)
 
                 arr = filter_files[flt]
@@ -246,8 +254,8 @@ class Supernova(object):
         '''
         :param times: observation times
         :param filtName: filter name
-        :param re: Radius of envelope in R_sun
-        :param me: Mass of envelope
+        :param Re: Radius of envelope in R_sun
+        :param Me: Mass of envelope
         :param ve: velocity of propagation (how do we say this) how fast the wave is moving out
 
         :return: array of all mags for specified times fitted assuming a BB model according to specified filter
@@ -329,14 +337,16 @@ class Supernova(object):
 
     def get_curvefit_values(self):
         try:
-            return self.NL_fitted_params, self.NL_fitted_errors
+            return self.CF_fitted_params, self.CF_fitted_errors
         except:
-            print('No fitted values for curve fit available. Call Fitter(this_object, "Non-linear Curve Fit")'
-                  'to obtain these values.')
+            print("This object has not been modelled using `scipy.opt.curve_fit`. Create a Fitter object and model using Fitter.simple_curve_fit().")
         return
 
     def get_MCMC_values(self):
-        return self.MCMC_fitted_params, self.MCMC_fitted_errors
+        try:
+            return self.MCMC_fitted_params, self.MCMC_fitted_errors
+        except:
+            print("This object has not been modelled using `emcee`. Create a Fitter object and model using Fitter.MCMC_fitter().")
 
 
 

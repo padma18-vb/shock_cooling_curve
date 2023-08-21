@@ -1,18 +1,27 @@
-from shock_cooling_curve.supernova import *
-from shock_cooling_curve.utils import utils
+from src.shock_cooling_curve.supernova import *
+from src.shock_cooling_curve.utils import utils
 
 class SW_RSG(Supernova):
+
+    """
+    Class: Wraps around `supernova`, and inherits all `supernova` functionality.
+    Produces synthetic photometry for shock-cooling emissions assuming the analytical
+    shock-cooling model presented in Sapir & Waxman (2017) [https://iopscience.iop.org/article/10.3847/1538-4357/aa64df].
+    """
+    
     def __init__(self, config_file, path_storage=None):
-        super().__init__(config_file, path_storage)
+        
         # sapir waxman: m = solar masses; r = r*10^13/rsun; v = 10^9cm/s
-        self.units = {'re': 'R_sun', 'me': 'M_sun', 've': '1e9 cm/s', 'Off': 'days'}
+        self.units = {'Re': 'R_sun', 'Me': 'M_sun', 've': '1e9 cm/s', 'Off': 'days'}
         # TODO: ASK WYNN IF THIS SCALING IS RIGHT
-        self.scale = {'re': 1e13/utils.rsun, 'me': 1, 've': 1*10**8.5/(10**9), 'Off': 1}
+        # Input scaling = 10^9
+        self.scale = {'Re': 1e13/utils.rsun, 'Me': 1, 've': 1, 'Off': 1}
 
         self.display_name = 'Sapir & Waxman [n = 1.5]' # usually class.model_name returns str(class name)
         self.initial = [2, 0.5, 2, 0.01]
         self.lower_bounds = [0.01, 0.01, 0.01, 0.001]
         self.upper_bounds =[10, 10, 10, 0.5]
+        super().__init__(config_file, path_storage)
 
     def luminosity(self, t, Re, Me, ve):
         M = self.mcore + Me ## solar mass

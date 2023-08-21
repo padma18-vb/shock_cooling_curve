@@ -1,25 +1,31 @@
 # INTERNAL IMPORTS
-from shock_cooling_curve.supernova import *
-from shock_cooling_curve.utils import utils
+from src.shock_cooling_curve.supernova import *
 
 class PIRO_2015(Supernova):
-    ''' Class: Wraps around `supernova`, and inherits all `supernova` functionality.
-    Produces synthetic photometry for shock-cooling emissions assuming the analytical
-    shock-cooling model presented in Piro A.L (2015) [https://doi.org/10.3847/1538-4357/abe2b1].
-    '''
-    def __init__(self, config_file, path_storage=None):
-        super().__init__(config_file, path_storage)
-        self.set_model()
-        self.units = {'re': 'R_sun', 'me': 'M_sun', 'Off': 'days'}
-        self.scale = {'re': 1, 'me': 1, 'Off': 1}
 
-    def set_model(self):
+    """
+    Class: Wraps around `supernova`, and inherits all `supernova` functionality.
+    Produces synthetic photometry for shock-cooling emissions assuming the analytical
+    shock-cooling model presented in Piro A.L (2015) [https://iopscience.iop.org/article/10.1088/2041-8205/808/2/L51].
+    """
+
+    def __init__(self, config_file, path_storage=None):
+        
         self.display_name = "Piro (2015)"
         self.initial = [11, 0.01, 0.1]
         self.lower_bounds = [0.1, 0.0001, 0.0]
         self.upper_bounds = [500, 1, 2]
+        self.units = {'Re': 'R_sun', 'Me': 'M_sun', 'Off': 'days'}
+        self.scale = {'Re': 1, 'Me': 1, 'Off': 1}
+        super().__init__(config_file, path_storage)
 
-    def luminosity(self, t, Re, Me, k=0.2):
+
+
+    def luminosity(self, t, Re, Me, ve=None, k=0.2):
+
+        """
+        Luminosity 
+        """
 
         def tp(Esn, Mc, Me, k):
             return 0.9 * ((k / 0.34) ** 0.5) * ((Esn) ** -0.25) * ((Mc) ** 0.17) * ((Me / (0.01)) ** 0.57)  # days

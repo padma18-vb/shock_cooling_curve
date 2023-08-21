@@ -1,12 +1,18 @@
-from shock_cooling_curve.supernova import *
-from shock_cooling_curve.utils import utils
+from src.shock_cooling_curve.supernova import *
+from src.shock_cooling_curve.utils import utils
 
 class SW_BSG(Supernova):
+
+    """
+    Class: Wraps around `supernova`, and inherits all `supernova` functionality.
+    Produces synthetic photometry for shock-cooling emissions assuming the analytical
+    shock-cooling model presented in Sapir & Waxman (2017) [https://iopscience.iop.org/article/10.3847/1538-4357/aa64df].
+    """
+
     def __init__(self, config_file, path_storage=None):
-        super().__init__(config_file, path_storage)
-        self.set_model()
-        self.units = {'re': 'R_sun', 'me': 'M_sun', 've': '1e9 cm/s', 'Off': 'days'}
-        self.scale = {'re': 1e13/utils.rsun, 'me': 1, 've': 1*10**8.5/(10**9), 'Off': 1}
+        
+        self.units = {'Re': 'R_sun', 'Me': 'M_sun', 've': '1e9 cm/s', 'Off': 'days'}
+        self.scale = {'Re': 1e13/utils.rsun, 'Me': 1, 've': 1, 'Off': 1}
 
         self.display_name = 'Sapir & Waxman [n = 3]' # usually class.model_name returns str(class name)
 
@@ -14,7 +20,15 @@ class SW_BSG(Supernova):
         self.lower_bounds = [0.01, 0.001, 0.01, 0.01]
         self.upper_bounds = [10, 3. , 10., 0.2]
 
+        super().__init__(config_file, path_storage)
+
     def luminosity(self, t, Re, Me, ve):
+        """
+        Applies the analytic model described in Sapir & Waxman (2017) for a blue supergiant (i.e density slope = 3)
+        to a 
+
+        """
+
         M = self.mcore + Me
         k = 0.2 / 0.34  # 1.
         fp = (Me / self.mcore) * 0.08  # n=3

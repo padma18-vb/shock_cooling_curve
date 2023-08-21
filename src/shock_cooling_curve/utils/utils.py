@@ -3,8 +3,11 @@ import os
 import numpy as np
 import pandas as pd
 
+
+# TODO - Use importlib.resources to get the path below - do you have to call pip install -e . first?
+
 filter_info = pd.read_csv("/Users/padmavenkatraman/Documents/Supernovae/SC_Modeling/SC_Notebooks/"
-                          "shock-cooling/shock_cooling_curve/filter_info.csv",
+                          "shock-cooling/src/shock_cooling_curve/filter_info.csv",
                           index_col=0)
 
 rsun = 6.96e10
@@ -39,9 +42,9 @@ def get_label(flt, off):
 def BB_lam(lam, T):
     '''
         :param lam: wavelength
-        :type lam: float
         :param T: temperature
-        :type T: float
+        :return: The radius of a blackbody emitting
+
     '''
 
 
@@ -49,8 +52,4 @@ def BB_lam(lam, T):
     rad = 2 * h * c ** 2 / (lam_cm ** 5 * (np.exp(h * c / (lam_cm * k * T)) - 1))
     radd = rad / 1e8  # erg / s / cm^2 / Ang.
     return radd
-
-
-if __name__ == '__main__':
-    print(os.getcwd(), os.listdir("../"))
 
