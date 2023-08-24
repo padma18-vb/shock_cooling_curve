@@ -22,7 +22,12 @@ class Fitter:
         self.params = self.sn_obj.params
         self.n_params = self.sn_obj.n_params
 
-    def simple_curve_fit(self):
+    def simple_curve_fit(self, lower_bounds = None, upper_bounds=None):
+        if lower_bounds is not None and upper_bounds is not None:
+            print('lower_bounds and upper_bounds have been provided. These will be used for curve fitting.')
+        else:
+            print('No bounds were provided. Here are the bounds we used:')
+            print(f'Lower bounds = {self.sn_obj.lower_bounds}, upper bounds = {self.sn_obj.upper_bounds}.')
 
         popt, pcov = opt.curve_fit(
             f=self.func,
@@ -32,7 +37,6 @@ class Fitter:
             sigma=self.yerr_mag,
             bounds=(self.sn_obj.lower_bounds, self.sn_obj.upper_bounds)
         )
-        # we're making some assumptions here - make sure you note down what those are
         sigma = np.sqrt(np.diag(pcov))
 
         self.sn_obj.CF_fitted_params = dict(zip(self.params, popt))
@@ -96,24 +100,36 @@ class Fitter:
         return self._get_val(param, vdict, edict)
 
 
-    def display_curve_fit(self):
+    def display_results(self, model='curvefit'):
+
         """
         Displays non-linear least squares curve fit results for object.
-        :return: Pandas dataframe containing non-linear curve fit results for all parameters.
+        :return: Pandas DataFrame containing non-linear curve fit results for all parameters.
         """
+        if model=='curvefit':
+            print('Model used: non linear least squared fitting')
+            return self.__display_results_helper(value_dict=self.sn_obj.CF_fitted_params, err_dict=self.sn_obj.CF_fitted_errors)
+        elif model=='MCMC':
+            print('Model used: MCMC Sampling')
+            return self.__display_results_helper(value_dict=self.sn_obj.MCMC_fitted_params, err_dict=self.sn_obj.MCMC_fitted_errors)
+        else:
+            print("Sorry! That model has not been implemented yet. The options are 'curvefit' or 'MCMC'")
+    
+    def __display_results_helper(self, value_dict, err_dict):
         store_vals = {}
         columns = [f'{self.sn_obj.model_name} value', f'{self.sn_obj.model_name} error']
-        print(f'{self.sn_obj.display_name} model for {self.sn_obj.folder} simple curve fitted values:')
-        for key, val in self.sn_obj.CF_fitted_params.items():
+        print(f'{self.sn_obj.display_name} model - {self.sn_obj.objname}:')
+        for key, val in value_dict.items():
             val = val * self.sn_obj.scale[key]
             unit = self.sn_obj.units[key]
-            err = self.sn_obj.CF_fitted_errors[key] * self.sn_obj.scale[key]
+            err = np.array(err_dict[key]) * self.sn_obj.scale[key]
             print(f'{key}: {val:e} +/- {err:e} {unit}')
             store_vals[f'{key} ({unit})'] = [val, err]
         val_df = pd.DataFrame.from_dict(store_vals, orient='index',
                                         columns=columns)
+        
         return val_df
-        # val_df.to_csv(self.make_path(f'{self.model_name}_results.csv'))
+ 
 
     def _analytical_model(self, p, xdata):
         """
@@ -144,21 +160,6 @@ class Fitter:
         Helper function used in MCMC sampling. Set uniform prior for each parameter in p within input bounds.
         :return: 0 if walker is within uniform bounds, -inf if walker leaves uniform bounds.
         """
-        if self.use_prev_CF_bounds:
-
-            try:
-                fitted = np.array(list(self.sn_obj.CF_fitted_params.values()))
-                errors = np.array(list(self.sn_obj.CF_fitted_errors.values()))
-                
-            except:
-                print('Fitted params from simple curve fit undefined. Attempting to curve fit.')
-
-                self.simple_curve_fit()
-                fitted = np.array(list(self.sn_obj.CF_fitted_params.values()))
-                errors = np.array(list(self.sn_obj.CF_fitted_errors.values()))
-                
-            self.prior_low = fitted - 5 * errors
-            self.prior_high = fitted + 5 * errors
 
         p = np.array(p)
 
@@ -168,7 +169,6 @@ class Fitter:
         # print(p > self.prior_low, p < self.prior_high)
         # print(np.all(p > self.prior_low) and np.all(p < self.prior_high))
         if np.all(p > self.prior_low) and np.all(p < self.prior_high):
-            # print("yes")
             return 0.0
         return -np.inf
 
@@ -186,26 +186,51 @@ class Fitter:
             return log_prior + self._loglikelihood_gauss(p, xdata, ydata, yerr)
         return -np.inf
 
-    def MCMC_fit(self, prior_low: list, prior_high: list, nwalkers=50, nsteps=500, sigma=1, minimize_param_space=False):
+    def MCMC_fit(self, prior_low: list, prior_high: list, nwalkers=50, nsteps=500, sigma=1, use_initial_params=None, initialize_using_CF=True, minimize_param_space=False):
         self.use_prev_CF_bounds = minimize_param_space
         self.prior_low = prior_low
         self.prior_high = prior_high
         # INITIALIZATION OF WALKERS
         ndim, nwalkers = self.n_params, nwalkers
         # get simple curve fit values
-        fitted, errs = self.simple_curve_fit()
+        
+        
+        if use_initial_params is not None:
 
-        for i in range(len(fitted)):
-            if fitted[i] < self.prior_low[i] or fitted[i] > self.prior_high[i]:
-                fitted[i] = errs[i]
+            assert np.all(use_initial_params > self.prior_low) and np.all(use_initial_params < self.prior_high), "The initial values you have provided are out of the uniform prior's bounds."
+            use_initial_params = np.array(use_initial_params)
+            pos = use_initial_params + 1e-3*use_initial_params*np.random.randn(nwalkers, ndim)
+        
+        else:
+            print("Initial values were not provided. Using results from curve fitting as initial parameters.")
+            fitted, errs = self.simple_curve_fit()
+            
+            
+            # make sure that the initial parameters obtained using curve fit are within prior bounds
+            # if they are not, use the error instead (seems to be well behaved if param is not)
+            for i in range(len(fitted)):
+                if fitted[i] < self.prior_low[i] or fitted[i] > self.prior_high[i]:
+                    fitted[i] = errs[i]
 
-                
+            if self.use_prev_CF_bounds:  
+                # reduces prior bounds to just       
+                self.prior_low = fitted - 5 * errs
+                self.prior_high = fitted + 5 * errs
 
-        pos = fitted + 1e-3 * fitted * np.random.randn(nwalkers, ndim)
+                print('Priors have been adjust to a smaller uniform parameter space.')
+                print(f'Updated prior_low = {self.prior_low}')
+                print(f'Updated prior_high = {self.prior_high}')
+
+            if initialize_using_CF:
+                pos = fitted + 1e-3 * fitted * np.random.randn(nwalkers, ndim)
+        
+        assert len(self.prior_high) >= 3, "prior_high length < 3."
+        assert len(self.prior_low) >= 3, "prior_low length < 3."
+        assert pos.shape == (nwalkers, ndim), f"pos.shape = {pos.shape}, but should be {(nwalkers, ndim)}."
+        
         with Pool() as pool:
-
             sampler = em.EnsembleSampler(nwalkers, ndim, log_prob_fn=self._logprob,
-                                        args=(self.xdata_phase, self.ydata_mag, self.yerr_mag), pool=pool)
+                                            args=(self.xdata_phase, self.ydata_mag, self.yerr_mag), pool=pool)
             sampler.run_mcmc(pos, nsteps=nsteps, progress=True)
         self.samp_chain = sampler.chain
         self.sn_obj.samp_chain = sampler.chain
@@ -214,20 +239,20 @@ class Fitter:
         
 
     def set_MCMC_bounds_errs(self, sigma):
-        self.sn_obj.MCMC_fitted = {}
-        self.sn_obj.MCMC_error = {}
+        self.sn_obj.MCMC_fitted_params = {}
+        self.sn_obj.MCMC_fitted_errors = {}
         self.sn_obj.MCMC_sampler = {}
         for i in range(self.n_params):
             param = self.params[i]
             param_arr = self.samp_chain[:, :, i]
             self.sn_obj.MCMC_sampler[param] = param_arr
-            self.sn_obj.MCMC_fitted[param] = np.median(param_arr)
+            self.sn_obj.MCMC_fitted_params[param] = np.median(param_arr)
             data_within_sig = np.percentile(param_arr, sigma * 34)
 
-            self.sn_obj.MCMC_error[param] = [self.sn_obj.MCMC_fitted[param] - data_within_sig,
-                                             self.sn_obj.MCMC_fitted[param] + data_within_sig]
+            self.sn_obj.MCMC_fitted_errors[param] = [self.sn_obj.MCMC_fitted_params[param] - data_within_sig,
+                                             self.sn_obj.MCMC_fitted_params[param] + data_within_sig]
 
-        return self.sn_obj.MCMC_fitted, self.sn_obj.MCMC_error
+        return self.sn_obj.MCMC_fitted_params, self.sn_obj.MCMC_fitted_errors
     
 
     def save_chain_local(self, local_path):
@@ -235,7 +260,7 @@ class Fitter:
         for i in range(self.samp_chain.shape[-1]):
             df = pd.DataFrame(self.samp_chain[:, :, i])
             filepath = os.path.join(local_path, f'{self.sn_obj.model_name}_{self.params[i]}_chain.csv')
-            locations.append[filepath]
+            locations.append(filepath)
             df.to_csv(filepath)
         print(f'MCMC sampler chains saved at the locations listed here: {locations}')
         return locations
@@ -287,4 +312,7 @@ class Fitter:
         edict = self.sn_obj.MCMC_fitted_errors
         
         return self._get_val(param, vdict, edict)
+    
+
+        
 

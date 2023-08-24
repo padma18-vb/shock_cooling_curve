@@ -11,7 +11,7 @@ import numpy as np
 
 # IMPORT UTILS
 # INTERNAL IMPORT
-from src.shock_cooling_curve.utils import utils
+from shock_cooling_curve.utils import utils
 # DATAFRAME HANDLING
 import pandas as pd
 
@@ -29,10 +29,10 @@ import pysynphot as S
 # IMPORT RE
 import re
 
-from importlib import resources
+import importlib.resources as pkg_resources
 
 # STORING FILTER DIRECTORY
-filter_dir = 'src/shock_cooling_curve/filters/'
+
 
 
 
@@ -201,7 +201,7 @@ class Supernova(object):
 
     def _build_df(self):
         self.data_all = pd.read_csv(self.make_path(self.filename))
-
+        
         reduced_df = self.add_red_mag(self.data_all)
         reduced_df = reduced_df.assign(MJD_S=reduced_df[self.date_colname] - self.start_sn)
         self.data_all = reduced_df.copy()
@@ -219,11 +219,14 @@ class Supernova(object):
         self.reduced_df.to_csv(self.make_path('reduced_data.csv'))
 
     @property
-    def get_extinction_applied_full_data(self):
+    def extinction_applied_full_data(self):
         return self.data_all
 
     @property
-    def get_data_during_shock_cooling(self):
+    def extinction_applied_data_during_shock_cooling(self):
+        """
+        :return:
+        """
         return self.reduced_df
 
     def get_filts(self):
@@ -240,9 +243,11 @@ class Supernova(object):
         for flt in filts:
             bandpass = self.filter_info.loc[flt]['Bandpass']
             try:
-                flt_filename =f'{filter_dir}{bandpass}_Filters/{bandpass}.{flt}.dat'
                 
-                filter_files[flt] = np.genfromtxt(flt_filename)
+                flt_filename =f'{bandpass}.{flt}.dat'
+                filter_path = pkg_resources.path(f'shock_cooling_curve.filters', f'{flt_filename}')
+                with filter_path as p:
+                    filter_files[flt] = np.genfromtxt(p)
 
                 arr = filter_files[flt]
                 self.bandpass_dict[flt] = S.ArrayBandpass(arr[:, 0], arr[:, 1], name=flt)

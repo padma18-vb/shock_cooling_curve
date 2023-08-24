@@ -2,13 +2,13 @@ import os
 
 import numpy as np
 import pandas as pd
+import importlib.resources as pkg_resources
 
 
 # TODO - Use importlib.resources to get the path below - do you have to call pip install -e . first?
-
-filter_info = pd.read_csv("/Users/padmavenkatraman/Documents/Supernovae/SC_Modeling/SC_Notebooks/"
-                          "shock-cooling/src/shock_cooling_curve/filter_info.csv",
-                          index_col=0)
+path = pkg_resources.path('shock_cooling_curve', 'filter_info.csv')
+with path as p:
+    filter_info = pd.read_csv(p, index_col=0)
 
 rsun = 6.96e10
 sigma = 5.67e-5

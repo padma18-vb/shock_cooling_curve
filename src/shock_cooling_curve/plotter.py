@@ -1,5 +1,5 @@
 # PLOTTING
-from src.shock_cooling_curve.utils import utils
+from shock_cooling_curve.utils import utils
 import matplotlib.pyplot as plt
 
 plt.rcParams['font.size'] = 14
@@ -18,6 +18,8 @@ class Plotter:
         self.sn_obj = sn_obj
         self.params = self.sn_obj.params
         self.n_params = self.sn_obj.n_params
+        self.objname = self.sn_obj.objname
+        self.model_name = self.sn_obj.display_name
         if self.n_params > 3:
             self.MCMC_labels = ["$R_e$", "$M_e$", "$v_{shock}$", "$t_{offset}$"]
 
@@ -86,7 +88,7 @@ class Plotter:
             ax.plot(t, vals, linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
             ax.legend(handles=legend_elements, frameon=False, ncol=2)
 
-            ax.set_title(f'{self.sn_obj.filename[:-9]} + {self.sn_obj.display_name}')
+            ax.set_title(f'{self.objname} + {self.sn_obj.display_name}')
             ax.set_xlabel('Phase (d)')
             ax.set_ylabel('Apparent Mag (m)')
         ax.invert_yaxis()
@@ -136,12 +138,13 @@ class Plotter:
             legend_elements.append(Patch(facecolor=utils.get_mapping('flt', flt, 'Color'),
                                          label=utils.get_label(flt, off)))
             # CONTINUOUS
+            print(Re, Me, ve)
             vals = self.sn_obj._mags_per_filter(t,filtName=flt, Re = Re, Me = Me, ve = ve) + off
 
             ax.plot(t, vals, linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
             ax.legend(handles=legend_elements, frameon=False, ncol=2)
 
-            ax.set_title(f'{self.sn_obj.filename[:-9]} + {self.sn_obj.display_name}')
+            ax.set_title(f'{self.objname} + {self.model_name}')
             ax.set_xlabel('Phase (d)')
             ax.set_ylabel('Apparent Mag (m)')
         ax.invert_yaxis()
@@ -149,15 +152,20 @@ class Plotter:
             plt.show()
         return fig
 
-    def MCMC_trace(self, burnin=0):
+    def MCMC_trace(self, burnin=0, color=False):
         """
         Generates the sampler trace plots for all the walkers used in MCMC sampling.
         """
         fig, axs = plt.subplots(self.n_params, 1, figsize=(10, 16))
         for i in range(self.n_params):
             p = self.params[i]
-            axs[i].plot(np.array(self.sn_obj.MCMC_sampler[p][:, burnin:]).T, color='k', alpha=0.5);
+            if color:
+                axs[i].plot(np.array(self.sn_obj.MCMC_sampler[p][:, burnin:]).T, alpha=0.5);
+            else:
+                axs[i].plot(np.array(self.sn_obj.MCMC_sampler[p][:, burnin:]).T, color='k', alpha=0.5);
+
             axs[i].set_title(f"{self.display_params[p]}")
+        plt.suptitle(f'{self.objname} + {self.model_name} parameter sampler chains')
         
         #fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}")
 
@@ -174,7 +182,7 @@ class Plotter:
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12, "loc": "left"})
-        #fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}")
+        fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}")
         return fig
 
     def make_video(self, ve=0.2, of=0.1):

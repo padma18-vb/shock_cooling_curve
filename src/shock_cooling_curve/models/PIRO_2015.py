@@ -1,5 +1,5 @@
 # INTERNAL IMPORTS
-from src.shock_cooling_curve.supernova import *
+from shock_cooling_curve.supernova import *
 
 class PIRO_2015(Supernova):
 

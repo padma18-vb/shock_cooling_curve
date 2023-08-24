@@ -17,6 +17,7 @@ dependencies = [
     'pandas',
     'extinction',
     'IPython',
+    'emcee'
 ]
 description = "A python module used to model the shock cooling emission from double-peaked supernovae."
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -53,7 +54,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 shock_cooling_curve = ["*.csv"]
-"shock_cooling_curve.filters" = ["*/*.dat"]
+"shock_cooling_curve.filters" = ["**/*.dat"]
 
 
 

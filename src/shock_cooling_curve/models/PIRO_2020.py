@@ -1,5 +1,5 @@
-from src.shock_cooling_curve.supernova import *
-from src.shock_cooling_curve.utils import utils
+from shock_cooling_curve.supernova import *
+from shock_cooling_curve.utils import utils
 
 
 class PIRO_2020(Supernova):
