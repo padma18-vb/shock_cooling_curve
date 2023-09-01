@@ -39,77 +39,18 @@ class Plotter:
             return times, mag_all, mag_err
         else:
             return times, mag_all, np.zeros(len(mag_all))
-
-    def _get_full_values(self):
-        return
-
-    def plot_full_curve(self, figsize=(10, 7), errorbar_column=None, shift=False, show=True,
-                        ls='--',
-                        fig=None, ax=None):
-        '''
-        Plots all observed data points (before and after shock cooling ends.)
-        Computes fitted magnitudes for times before end of shock cooling.
-        Plot shows all observed data points and the fitted shock cooling curve.
-        '''
-
-        fitted, _ = self.sn_obj.get_curvefit_values()
-
-        Re, Me, ve, of = fitted
-
-        if fig is None and ax is None:
-            fig, ax = plt.subplots(figsize=figsize)
-        unique_filts = self.sn_obj.get_filts()
-        n = len(unique_filts)
-        minmag = min(self.sn_obj.reduced_df[self.sn_obj.mag_colname]) - n
-        maxmag = max(self.sn_obj.reduced_df[self.sn_obj.mag_colname]) + n
-        t = np.linspace(0.01, max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]) + 1, 100)
-
-        yerr = errorbar_column
-        if shift:
-            offset = utils.build_offset(n)
-        else:
-            offset = [0] * len(unique_filts)
-
-        legend_elements = []
-        for flt in unique_filts:
-            times, mag_all, mag_err = self._get_discrete_values(self, self.sn_obj.data_all, flt, of,
-                                                                errorbar_col= errorbar_column, full=False)
-            off = offset.pop(0)
-            mag_all += off
-
-            # DISCRETE
-            ax.errorbar(x=times, y=mag_all, yerr=yerr, fmt='o', markersize=14, markeredgecolor='k',
-                        color=utils.get_mapping('flt', flt, 'Color'))
-
-            legend_elements.append(Patch(facecolor=utils.get_mapping('flt', flt, 'Color'),
-                                         label=utils.get_label(flt, off)))
-            # CONTINUOUS
-            vals = self.sn_obj.mags_per_filter(t, Re, Me, ve, filtName=flt) + off
-            ax.plot(t, vals, linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
-            ax.legend(handles=legend_elements, frameon=False, ncol=2)
-
-            ax.set_title(f'{self.objname} + {self.sn_obj.display_name}')
-            ax.set_xlabel('Phase (d)')
-            ax.set_ylabel('Apparent Mag (m)')
-        ax.invert_yaxis()
-        if show:
-            plt.show()
-        return fig
-
-    def plot_given_parameters(self, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
+    
+    def _plot_helper(self, df, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
                               ls='--',
                               fig=None, ax=None):
-        """
         
-        """
-
         if fig == None and ax == None:
             fig, ax = plt.subplots(figsize=figsize)
         unique_filts = self.sn_obj.get_filts()
         n = len(unique_filts)
-        minmag = min(self.sn_obj.reduced_df[self.sn_obj.mag_colname]) - n
-        maxmag = max(self.sn_obj.reduced_df[self.sn_obj.mag_colname]) + n
-        t = np.linspace(0.01, max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]) + 1, 100)
+        minmag = min(df[self.sn_obj.mag_colname]) - n
+        maxmag = max(df[self.sn_obj.mag_colname]) + n
+        t = np.linspace(0.01, max(df[self.sn_obj.shift_date_colname]) + 1, 100)
 
         yerr = errorbar
         if shift:
@@ -117,29 +58,21 @@ class Plotter:
         else:
             offset = [0] * len(unique_filts)
 
-        # HARDCODED
-        # print('unique_filts', unique_filts)
-        # for flt in self.sn_obj.filt_to_wvl.keys():
         legend_elements = []
         for flt in unique_filts:
-            filtered = self.sn_obj.reduced_df[self.sn_obj.reduced_df[self.sn_obj.flt_colname] == flt]
-            times = np.array(filtered['MJD_S'])
-
-            # filter negative phases
-
+            times, mag_all, mag_err = self._get_discrete_values(self, df, flt, of,
+                                                    errorbar_col= errorbar_column)
             off = offset.pop(0)
-            mag_all = np.array(filtered[self.sn_obj.mag_colname]) + off
-            if errorbar != None:
-                yerr = np.array(filtered[errorbar])
+            mag_all += off
+
             # DISCRETE
-            ax.errorbar(x=times, y=mag_all, yerr=yerr, fmt='o', markersize=14, markeredgecolor='k',
+            ax.errorbar(x=times, y=mag_all, yerr=mag_err, fmt='o', markersize=14, markeredgecolor='k',
                         color=utils.get_mapping('flt', flt, 'Color'))
 
             legend_elements.append(Patch(facecolor=utils.get_mapping('flt', flt, 'Color'),
                                          label=utils.get_label(flt, off)))
             # CONTINUOUS
-            print(Re, Me, ve)
-            vals = self.sn_obj._mags_per_filter(t,filtName=flt, Re = Re, Me = Me, ve = ve) + off
+            vals = self.sn_obj._mags_per_filter(t, filtName=flt, Re = Re, Me = Me, ve = ve) + off
 
             ax.plot(t, vals, linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
             ax.legend(handles=legend_elements, frameon=False, ncol=2)
@@ -151,6 +84,35 @@ class Plotter:
         if show:
             plt.show()
         return fig
+        
+
+    def plot_full_curve(self, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
+                              ls='--',
+                              fig=None, ax=None):
+        '''
+        Plots all observed data points (before and after shock cooling ends.)
+        Computes fitted magnitudes for times before end of shock cooling.
+        Plot shows all observed data points and the fitted shock cooling curve.
+        '''
+        return self._plot_helper(self.sn_obj.reduced_data, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
+                              ls='--',
+                              fig=None, ax=None )
+
+      
+
+    def plot_given_parameters(self, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
+                              ls='--',
+                              fig=None, ax=None):
+        '''
+        Plots all observed data points before shock cooling ends.
+        Computes fitted magnitudes for times before end of shock cooling.
+        Plot shows all observed data points and the fitted shock cooling curve.
+        '''
+        return self._plot_helper(self.sn_obj.data_all, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
+                        ls='--',
+                        fig=None, ax=None )
+
+
 
     def MCMC_trace(self, burnin=0, color=False):
         """

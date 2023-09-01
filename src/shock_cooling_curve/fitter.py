@@ -3,6 +3,7 @@ import scipy.optimize as opt
 import emcee as em
 import pandas as pd
 import os
+import shock_cooling_curve.supernova
 from multiprocessing import Pool
 
 
@@ -21,13 +22,29 @@ class Fitter:
         self.func = self.sn_obj.get_all_mags
         self.params = self.sn_obj.params
         self.n_params = self.sn_obj.n_params
+    
 
-    def simple_curve_fit(self, lower_bounds = None, upper_bounds=None):
-        if lower_bounds is not None and upper_bounds is not None:
-            print('lower_bounds and upper_bounds have been provided. These will be used for curve fitting.')
+    def nl_curve_fit(self, lower_bounds = None, upper_bounds=None, initial_guess=None):
+        if lower_bounds is not None:
+            print('lower_bounds have been provided. These will be used for curve fitting.')
+            self.sn_obj.lower_bounds = lower_bounds
         else:
-            print('No bounds were provided. Here are the bounds we used:')
-            print(f'Lower bounds = {self.sn_obj.lower_bounds}, upper bounds = {self.sn_obj.upper_bounds}.')
+            print('No lower bounds were provided. Here are the lower bounds we used:')
+            print(f'Lower bounds = {self.sn_obj.lower_bounds}.')
+        
+        if upper_bounds is not None:
+            print('upper_bounds have been provided. These will be used for curve fitting.')
+            self.sn_obj.upper_bounds = upper_bounds
+        else:
+            print('No upper bounds were provided. Here are the upper bounds we used:')
+            print(f'Upper bounds = {self.sn_obj.upper_bounds}.')
+
+        if initial_guess is not None:
+            print('initial_guess have been provided.')
+            self.sn_obj.initial = initial_guess
+        else:
+            print('initial_guess not provided. We use this initial guess:')
+            print(f'Initial Guess = {self.sn_obj.initial}.')
 
         popt, pcov = opt.curve_fit(
             f=self.func,
@@ -44,6 +61,16 @@ class Fitter:
 
 
         return popt, sigma
+    
+    def minimize(self, initial_guess=None):
+        if initial_guess is not None:
+            print('initial_guess have been provided.')
+            self.sn_obj.initial = initial_guess
+        else:
+            print('initial_guess not provided. We use this initial guess:')
+            print(f'Initial Guess = {self.sn_obj.initial}.')
+            
+        return opt.minimize(f=self.func, p0 = self.sn_obj.initial)
     
     def _get_val(self, param, value_dict, err_dict):
         print(f'Units: {self.sn_obj.units[param]}')
@@ -104,6 +131,7 @@ class Fitter:
 
         """
         Displays non-linear least squares curve fit results for object.
+
         :return: Pandas DataFrame containing non-linear curve fit results for all parameters.
         """
         if model=='curvefit':
@@ -203,7 +231,7 @@ class Fitter:
         
         else:
             print("Initial values were not provided. Using results from curve fitting as initial parameters.")
-            fitted, errs = self.simple_curve_fit()
+            fitted, errs = self.nl_curve_fit()
             
             
             # make sure that the initial parameters obtained using curve fit are within prior bounds
