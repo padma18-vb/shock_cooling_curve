@@ -355,18 +355,15 @@ class Supernova(object):
 
 
 
-    def get_model_perfomance(self):
+    def get_model_performance(self, params):
         xdata_phase = np.array(self.reduced_df[self.shift_date_colname])
         ydata_mag = np.array(self.reduced_df[self.mag_colname])
         yerr_mag = np.array(self.reduced_df[self.magerr_colname])
-        assert len(self.get_MCMC_values())==2, "This object has not been fit with MCMC. Please call Fitter.MCMC_fit(...) before you evaluate perfomance."
-        
-        params, errs = self.get_MCMC_values()
 
         try:
-            yfit_mag = self.get_all_mags(xdata_phase, Re=params['Re'], Me=params['Me'], ve=params['ve'], of=params['Off'])
+            yfit_mag = self.get_all_mags(xdata_phase, params['Re'], params['Me'], params['ve'], params['Off'])
         except:
-            yfit_mag = self.get_all_mags(xdata_phase, Re=params['Re'], Me=params['Me'], of=params['Off'])
+            yfit_mag = self.get_all_mags(xdata_phase, params['Re'], params['Me'], params['Off'])
 
         dof = len(xdata_phase) - len(params)
         resid = (ydata_mag - yfit_mag)/yerr_mag

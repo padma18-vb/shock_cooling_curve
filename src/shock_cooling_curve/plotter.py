@@ -27,10 +27,9 @@ class Plotter:
             self.MCMC_labels = ["$R_e$", "$M_e$", "$t_{offset}$"]
         self.display_params = dict(zip(self.params, self.MCMC_labels))
 
-    def _get_discrete_values(self, df, flt, of, errorbar_col, full=False):
-        if full:
-            filtered = df[df[self.sn_obj.flt_colname] == flt]
-            filtered['shifted'] = filtered['MJD_S'] - of
+    def _get_discrete_values(self, df, flt, of, errorbar_col):
+        filtered = df[df[self.sn_obj.flt_colname] == flt].copy()
+        filtered['shifted'] = filtered['MJD_S'] - of
         filtered = filtered[filtered['shifted'] > 0]
         times = np.array(filtered['shifted'])
         mag_all = np.array(filtered[self.sn_obj.mag_colname])
@@ -42,7 +41,7 @@ class Plotter:
     
     def _plot_helper(self, df, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
                               ls='--',
-                              fig=None, ax=None):
+                              fig=None, ax=None, legend =True):
         
         if fig == None and ax == None:
             fig, ax = plt.subplots(figsize=figsize)
@@ -50,7 +49,9 @@ class Plotter:
         n = len(unique_filts)
         minmag = min(df[self.sn_obj.mag_colname]) - n
         maxmag = max(df[self.sn_obj.mag_colname]) + n
-        t = np.linspace(0.01, max(df[self.sn_obj.shift_date_colname]) + 1, 100)
+
+        # only get times within shock cooling time range
+        t = np.linspace(0.01, max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]) + 1, 100)
 
         yerr = errorbar
         if shift:
@@ -60,8 +61,8 @@ class Plotter:
 
         legend_elements = []
         for flt in unique_filts:
-            times, mag_all, mag_err = self._get_discrete_values(self, df, flt, of,
-                                                    errorbar_col= errorbar_column)
+            times, mag_all, mag_err = self._get_discrete_values(df, flt, of,
+                                                    errorbar_col= errorbar)
             off = offset.pop(0)
             mag_all += off
 
@@ -75,7 +76,8 @@ class Plotter:
             vals = self.sn_obj._mags_per_filter(t, filtName=flt, Re = Re, Me = Me, ve = ve) + off
 
             ax.plot(t, vals, linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
-            ax.legend(handles=legend_elements, frameon=False, ncol=2)
+            if legend:
+                ax.legend(handles=legend_elements, frameon=False, ncol=2)
 
             ax.set_title(f'{self.objname} + {self.model_name}')
             ax.set_xlabel('Phase (d)')
@@ -94,9 +96,16 @@ class Plotter:
         Computes fitted magnitudes for times before end of shock cooling.
         Plot shows all observed data points and the fitted shock cooling curve.
         '''
-        return self._plot_helper(self.sn_obj.reduced_data, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
+        return self._plot_helper(df = self.sn_obj.data_all, Re=Re, Me=Me, ve=ve, of=of, figsize=figsize, errorbar=errorbar, shift=shift, show=show,
+                        ls=ls,
+                        fig=fig, ax=ax )
+    
+    def plot_given_observed_data(self, data, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
                               ls='--',
-                              fig=None, ax=None )
+                              fig=None, ax=None):
+        return self._plot_helper(df = data, Re=Re, Me=Me, ve=ve, of=of, figsize=figsize, errorbar=errorbar, shift=shift, show=show,
+                        ls=ls,
+                        fig=fig, ax=ax )
 
       
 
@@ -108,9 +117,9 @@ class Plotter:
         Computes fitted magnitudes for times before end of shock cooling.
         Plot shows all observed data points and the fitted shock cooling curve.
         '''
-        return self._plot_helper(self.sn_obj.data_all, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
-                        ls='--',
-                        fig=None, ax=None )
+        return self._plot_helper(df = self.sn_obj.reduced_df, Re=Re, Me=Me, ve=ve, of=of, figsize=figsize, errorbar=errorbar, shift=shift, show=show,
+                        ls=ls,
+                        fig=fig, ax=ax)
 
 
 
