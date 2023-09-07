@@ -41,7 +41,7 @@ class Plotter:
     
     def _plot_helper(self, df, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
                               ls='--',
-                              fig=None, ax=None, legend =True):
+                              fig=None, ax=None, legend =True, legend_loc='best'):
         
         if fig == None and ax == None:
             fig, ax = plt.subplots(figsize=figsize)
@@ -77,11 +77,11 @@ class Plotter:
 
             ax.plot(t, vals, linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
             if legend:
-                ax.legend(handles=legend_elements, frameon=False, ncol=2)
+                ax.legend(handles=legend_elements, frameon=False, ncol=2, loc = legend_loc)
 
             ax.set_title(f'{self.objname} + {self.model_name}')
-            ax.set_xlabel('Phase (d)')
-            ax.set_ylabel('Apparent Mag (m)')
+            ax.set_xlabel('Time from Explosion (days)')
+            ax.set_ylabel('Apparent Magnitude (mag)')
         ax.invert_yaxis()
         if show:
             plt.show()
@@ -90,24 +90,23 @@ class Plotter:
 
     def plot_full_curve(self, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
                               ls='--',
-                              fig=None, ax=None):
+                              fig=None, ax=None, legend=True, legend_loc='best'):
         '''
         Plots all observed data points (before and after shock cooling ends.)
         Computes fitted magnitudes for times before end of shock cooling.
         Plot shows all observed data points and the fitted shock cooling curve.
         '''
-        return self._plot_helper(df = self.sn_obj.data_all, Re=Re, Me=Me, ve=ve, of=of, figsize=figsize, errorbar=errorbar, shift=shift, show=show,
-                        ls=ls,
-                        fig=fig, ax=ax )
+        return self._plot_helper(df = self.sn_obj.data_all, Re=Re, Me=Me, ve=ve, of=of, 
+                                 figsize=figsize, errorbar=errorbar, 
+                                 shift=shift, show=show,ls=ls,
+                                 fig=fig, ax=ax, legend=legend, legend_loc=legend_loc)
     
     def plot_given_observed_data(self, data, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
-                              ls='--',
-                              fig=None, ax=None):
-        return self._plot_helper(df = data, Re=Re, Me=Me, ve=ve, of=of, figsize=figsize, errorbar=errorbar, shift=shift, show=show,
-                        ls=ls,
-                        fig=fig, ax=ax )
-
-      
+                              ls='--', fig=None, ax=None, legend=True, legend_loc='best'):
+        return self._plot_helper(df = data, Re=Re, Me=Me, ve=ve, of=of, 
+                                 figsize=figsize, errorbar=errorbar, 
+                                 shift=shift, show=show, ls=ls, 
+                                 fig=fig, ax=ax, legend=legend, legend_loc=legend_loc)
 
     def plot_given_parameters(self, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
                               ls='--',
@@ -117,9 +116,10 @@ class Plotter:
         Computes fitted magnitudes for times before end of shock cooling.
         Plot shows all observed data points and the fitted shock cooling curve.
         '''
-        return self._plot_helper(df = self.sn_obj.reduced_df, Re=Re, Me=Me, ve=ve, of=of, figsize=figsize, errorbar=errorbar, shift=shift, show=show,
-                        ls=ls,
-                        fig=fig, ax=ax)
+        return self._plot_helper(df = self.sn_obj.reduced_df, Re=Re, Me=Me, ve=ve, of=of,
+                                 figsize=figsize, errorbar=errorbar, 
+                                 shift=shift, show=show, ls=ls, 
+                                 fig=fig, ax=ax, legend=legend, legend_loc=legend_loc)
 
 
 
