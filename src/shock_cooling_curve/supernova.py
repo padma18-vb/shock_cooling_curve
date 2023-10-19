@@ -1,4 +1,4 @@
-#### REQUIRED IMPORTS ####
+# REQUIRED IMPORTS
 
 # PATH MANIPULATION
 import os.path
@@ -15,8 +15,6 @@ from shock_cooling_curve.utils import utils
 # DATAFRAME HANDLING
 import pandas as pd
 
-
-
 # READING IN USER INPUT
 import configparser
 
@@ -27,13 +25,12 @@ import extinction
 import pysynphot as S
 
 # IMPORT RE
-import re
+import re as regex
 
 import importlib.resources as pkg_resources
 
+
 # STORING FILTER DIRECTORY
-
-
 
 
 class Supernova(object):
@@ -45,7 +42,7 @@ class Supernova(object):
     specified mass and radius of envelope (and velocity of shock wave).
     """
 
-    def __init__(self, config_file, path_to_storage = None):
+    def __init__(self, config_file, path_to_storage=None):
         """
         Initializes supernova object.
         :param config_file: Name of config file.
@@ -55,7 +52,7 @@ class Supernova(object):
         self.config_file = config_file
         self.path_to_storage = path_to_storage
 
-        self.folder = re.split("/", self.path_to_storage)[-1]
+        self.folder = regex.split("/", self.path_to_storage)[-1]
         d = self._make_dict()
         for a, b in d.items():
             if isinstance(b, (list, tuple)):
@@ -63,7 +60,6 @@ class Supernova(object):
             else:
                 setattr(self, a, Supernova(b) if isinstance(b, dict) else b)
         self._controls()
-
 
     def _make_dict(self):
         """
@@ -78,7 +74,7 @@ class Supernova(object):
         details_dict['folder'] = self.folder
 
         for key, val in config.items('DEFAULT'):
-            if not re.search('[a-zA-Z]', val):
+            if not regex.search('[a-zA-Z]', val):
                 details_dict[key] = float(val)
             else:
                 details_dict[key] = val
@@ -86,19 +82,15 @@ class Supernova(object):
         return details_dict
 
     def _controls(self):
-        """
-        Helper function used to carry out initial data reduction operations.
+        """Helper function used to carry out initial data reduction operations.
         All main operations are called here to switch on and off functionality as needed.
-        :return: None
         """
         self._assert_params()
         self._build_df()
         self._build_bandpass()
 
     def _assert_params(self):
-        """
-        Helper function used to calibrate and maintain global parameters. Configures input data.
-        :return: None
+        """Helper function used to calibrate and maintain global parameters. Configures input data.
         """
         self.a_v = self.ebv_mw * 3.1
         self.a_v_host = self.ebv_host * 3.1
@@ -121,90 +113,122 @@ class Supernova(object):
         self.filter_info = utils.filter_info
 
     def make_path(self, filename):
-        """
-        Helper function used to store any generated data in the same directory as data source
-        :param filename: Name of generated file. Example: test_plot.png
-        :return: OS Path to data origin folder with new file joined to the path.
+        """Helper function used to store any generated data in the same directory as data source
+        Args:
+            filename (str): Name of generated file. Example: test_plot.png
+
+        Returns:
+            Path-like: OS Path to data origin folder with new file joined to the path.
         """
         return os.path.join(self.path_to_storage, filename)
 
     def set_mag_colname(self, name='MAG'):
-        """
-        Setter: sets the magnitude column name. Defaults to "MAG", assumes that initial input data has "MAG" column,
+        """Sets the magnitude column name. Defaults to "MAG", assumes that initial input data has "MAG" column,
         but once the data is read in, column names can be changed and reassigned using this function.
+
+        Args:
+            name (str, optional): Name of magnitude column. Defaults to 'MAG'.
         """
         self.mag_colname = name
 
     def set_magerr_colname(self, name='MAGERR'):
-        """
-        Setter: sets the magnitude error column name. Defaults to "MAGERR", assumes that initial input data has
+        """Sets the magnitude error column name. Defaults to "MAGERR", assumes that initial input data has
         "MAGERR" column, but once the data is read in, column names can be changed and reassigned using this function.
+
+        Args:
+            name (str, optional): Name of magnitude error column. Defaults to 'MAGERR'.
         """
         self.magerr_colname = name
 
     def set_date_colname(self, name='MJD'):
-        """
-        Setter: sets the date (in MJD) column name. Defaults to "MJD", assumes that initial input data has
+        """Sets the date (in MJD) column name. Defaults to "MJD", assumes that initial input data has
         "MJD" column, but once the data is read in, column names can be changed and reassigned using this function.
+
+        Args:
+            name (str, optional): Name of date column name. Defaults to 'MJD'.
         """
         self.date_colname = name
 
     def set_flt_colname(self, name='FLT'):
-        """
-        Setter: sets the filter column name. Defaults to "FLT", assumes that initial input data has
+        """Sets the filter column name. Defaults to "FLT", assumes that initial input data has
         "FLT" column, but once the data is read in, column names can be changed and reassigned using this function.
+
+        Args:
+            name (str, optional): Name of filter column name. Defaults to 'FLT'.
         """
         self.flt_colname = name
 
     def set_vega_colname(self, name='Vega'):
-        """
-        Setter: sets the boolean valued vega column name. Defaults to "Vega", assumes that initial input data has
+        """Sets the boolean valued vega column name. Defaults to "Vega", assumes that initial input data has
         "Vega" column, but once the data is read in, column names can be changed and reassigned using this function.
+
+        Args:
+            name (str, optional): Name of vega flag column name. Defaults to 'Vega'.
         """
         self.vega_colname = name
 
-    def convertAB_Vega(self, flt, mag, vega):
-        """
-        :param flt: Filter in which measurement is made
-        :param mag: Magnitude measurement
-        :param vega: Boolean value: 1 = vega magnitude; 0 = AB magnitude.
-        Helper function used to convert Vega magnitudes to AB.
+    def convertAB_Vega(self, mag, flt, vega):
+        """Helper function used to convert Vega magnitudes to AB.
+
+        Args:
+            mag (str): observed photometry value
+            flt (str): filter in which measurement is made
+            vega (int): boolean value: 1 = vega magnitude; 0 = AB magnitude.
+
+        Returns:
+            _type_: _description_
         """
         if vega:
             mag += self.filter_info.loc[flt]['AB - Vega']
             return mag
         return mag
 
+    def reduce(self, mag, filt):
+        """Helper function to apply reddening to observed photometry.
+
+        Args:
+            mag (str): observed photometry value
+            filt (str): filter in which measurement is made
+
+        Returns:
+            int: reduced photometry value
+        """
+        wvl = np.array([utils.get_mapping('flt', filt, 'Effective Wavelength')])
+        m_dr = mag - extinction.fitzpatrick99(wvl, self.a_v, r_v=3.1, unit='aa')
+        m_dr = m_dr - extinction.fitzpatrick99(wvl, self.a_v_host, r_v=3.1, unit='aa')
+        return m_dr[0]
+
     def add_red_mag(self, df):
         """
+        Modifies original data frame.
+        Converts Vega mags to AB mags.
+        Applies Fitzpatrick 99 Extinction to AB mags assuming R_v = 3.1
 
+        Args:
+            df (pd.DataFrame): table containing photometry
+        
+        Returns:
+            pd.DataFrame: modified dataframe with "RMAG" column containing extinction-correct AB mags.
         """
-        # makes no change to original data frame for future reference for user
-        dfnew = df.copy()
-        mags = np.array(dfnew[self.mag_colname])
-        dfnew[self.mag_colname] = dfnew.apply(
-            lambda x: self.convertAB_Vega(x[self.flt_colname], x[self.mag_colname], x['Vega']), axis=1)
-        filts = np.array(dfnew[self.flt_colname])
-        mag_to_filt = dict(zip(mags, filts))
 
-        def reduce(mag):
-            filt = mag_to_filt[mag]
-            wvl = np.array([utils.get_mapping('flt', filt, 'Effective Wavelength')])
-            m_dr = mag - extinction.fitzpatrick99(wvl, self.a_v, r_v=3.1, unit='aa')
-            m_dr = m_dr - extinction.fitzpatrick99(wvl, self.a_v_host, r_v=3.1, unit='aa')
-            return m_dr
-
-        reduced_mags = np.array([reduce(mag) for mag in mags])
-        dfnew[self.rmag_colname] = reduced_mags
-
-        return dfnew
+        df[self.rmag_colname] = df.apply(
+            lambda x: self.reduce(x[self.mag_colname], x[self.flt_colname]), axis=1)
+        df[self.rmag_colname] = df.apply(
+            lambda x: self.convertAB_Vega(x[self.rmag_colname], x[self.flt_colname], x['Vega']), axis=1)
+        return df
 
     def _build_df(self):
-        self.data_all = pd.read_csv(self.make_path(self.filename))
-        
+        """Helper function to filter only the data during shock cooling.
+        """
+        # read in data from photometry file
+        self.data_all = pd.read_csv(self.make_path(self.filename), index_col=0)
+
+        # convert vega to AB mag and apply extinction
         reduced_df = self.add_red_mag(self.data_all)
+
+        # add column "MJD_S" which converts MJD dates to SN start reference frame (starting from 0)
         reduced_df = reduced_df.assign(MJD_S=reduced_df[self.date_colname] - self.start_sn)
-        self.data_all = reduced_df.copy()
+        self.data_all = reduced_df.copy(deep=True)
         self.data_all = self.data_all[self.data_all['MJD_S'] > 0]
         reduced_df = reduced_df[reduced_df[self.date_colname] <= self.end_sc]
         reduced_df = reduced_df[reduced_df[self.date_colname] >= self.start_sn]
@@ -220,31 +244,41 @@ class Supernova(object):
 
     @property
     def extinction_applied_full_data(self):
+        """
+        Returns:
+            pd.DataFrame: All photometry data supplied with extinction corrected 
+            photometry in a separate "RMAG" column
+        """
         return self.data_all
 
     @property
     def extinction_applied_data_during_shock_cooling(self):
         """
-        :return:
+        Returns:
+            pd.DataFrame: All photometry data during shock cooling with extinction corrected 
+            photometry in a separate "RMAG" column. This data is used in all fitting procedures.
         """
         return self.reduced_df
 
     def get_filts(self):
-        '''
-        Queries input dataframe for all filters used to observe the target.
-        :return: pandas Series object with all unique filters for supplied target.
-        '''
+        """Queries input dataframe for all filters used to observe the target.
+
+        Returns:
+            pd.Series: All unique filters for supplied target.
+        """
         return pd.unique(self.reduced_df[self.flt_colname])
 
     def _build_bandpass(self):
+        """Helper function to associate filters with pysynphot passbands.
+        """
         filter_files = {}  # key: flt, value: array containing filter values
         self.bandpass_dict = {}  # key: flt, value: bandpass
         filts = self.get_filts()
         for flt in filts:
             bandpass = self.filter_info.loc[flt]['Bandpass']
             try:
-                
-                flt_filename =f'{bandpass}.{flt}.dat'
+
+                flt_filename = f'{bandpass}.{flt}.dat'
                 filter_path = pkg_resources.path(f'shock_cooling_curve.filters', f'{flt_filename}')
                 with filter_path as p:
                     filter_files[flt] = np.genfromtxt(p)
@@ -255,23 +289,25 @@ class Supernova(object):
                 self.bandpass_dict[flt] = S.ObsBandpass(f'{bandpass},{flt}')
 
     # only called when fitting occurs
-    def _mags_per_filter(self, times: [float], filtName = None, **kwargs):
-        '''
-        :param times: observation times
-        :param filtName: filter name
-        :param Re: Radius of envelope in R_sun
-        :param Me: Mass of envelope
+    def _mags_per_filter(self, times: [float], filtName=None, **kwargs):
+        """_summary_
+        :param re: Radius of envelope in R_sun
+        :param me: Mass of envelope
         :param ve: velocity of propagation (how do we say this) how fast the wave is moving out
+        Args:
+            times ([float]): observation times
+            filtName (str, optional): filter name. Defaults to None.
+            **kwargs
 
-        :return: array of all mags for specified times fitted assuming a BB model according to specified filter
-        '''
+        Returns:
+            array-like: all mags for specified times fitted assuming a BB model according to specified filter
+        """
 
         R, T = self.luminosity(times, **kwargs)
 
         R = R.flatten()
         T = T.flatten()
         with io.capture_output():
-
             mags = np.array([])
             for i in range(len(T)):
                 bb = S.BlackBody(T[i])
@@ -292,31 +328,30 @@ class Supernova(object):
         '''
         Obtains 
         :param times: Times at which data is available
-        :param Re: Radius of envelope
-        :param Me: Mass of envelope
+        :param re: Radius of envelope
+        :param me: Mass of envelope
         :param ve: Velocity of wave moving out
-        :param of: Offset for observation time
+        :param off: Offset for observation time
         :return: array of all mags at specified time according to filter
         '''
         filters = np.array(self.reduced_df['FLT'])
         if len([*args]) == 3:
-            re, me, of = args
+            re, me, off = args
             ve = None
         else:
-            re, me, ve, of = args
+            re, me, ve, off = args
 
         # with io.capture_output() as captured:
         # mjd date, of - free parameter
         all_mags = np.array([])
         for i in range(len(times)):
             flt = filters[i]
-            time = times[i] - of
-            val = self._mags_per_filter(time, filtName=flt, Re=re, Me=me,
-                                       ve=ve)
+            time = times[i] - off
+            val = self._mags_per_filter(time, filtName=flt, re=re, me=me,
+                                        ve=ve)
 
             all_mags = np.append(all_mags, val)
         return all_mags
-
 
     def write_to_file(self):
         return
@@ -339,36 +374,32 @@ class Supernova(object):
         with open(config_file, 'w') as configfile:
             config.write(configfile)
 
-
     def get_curvefit_values(self):
         try:
             return self.CF_fitted_params, self.CF_fitted_errors
         except:
-            print("This object has not been modelled using `scipy.opt.curve_fit`. Create a Fitter object and model using Fitter.simple_curve_fit().")
+            print("This object has not been modelled using `scipy.opt.curve_fit`. Create a Fitter object and model "
+                  "using Fitter.simple_curve_fit().")
         return
 
     def get_MCMC_values(self):
         try:
             return self.MCMC_fitted_params, self.MCMC_fitted_errors
         except:
-            print("This object has not been modelled using `emcee`. Create a Fitter object and model using Fitter.MCMC_fitter().")
-
-
+            print("This object has not been modelled using `emcee`. Create a Fitter object and model using "
+                  "Fitter.MCMC_fitter().")
 
     def get_model_performance(self, params):
         xdata_phase = np.array(self.reduced_df[self.shift_date_colname])
-        ydata_mag = np.array(self.reduced_df[self.mag_colname])
+        ydata_mag = np.array(self.reduced_df[self.rmag_colname])
         yerr_mag = np.array(self.reduced_df[self.magerr_colname])
 
         try:
-            yfit_mag = self.get_all_mags(xdata_phase, params['Re'], params['Me'], params['ve'], params['Off'])
-        except:
-            yfit_mag = self.get_all_mags(xdata_phase, params['Re'], params['Me'], params['Off'])
+            yfit_mag = self.get_all_mags(xdata_phase, params['re'], params['me'], params['ve'], params['off'])
+        except KeyError:
+            yfit_mag = self.get_all_mags(xdata_phase, params['re'], params['me'], params['off'])
 
         dof = len(xdata_phase) - len(params)
-        resid = (ydata_mag - yfit_mag)/yerr_mag
+        resid = (ydata_mag - yfit_mag) / yerr_mag
         chisq = np.dot(resid, resid)
-        return chisq/dof
-
-         
-
+        return chisq / dof

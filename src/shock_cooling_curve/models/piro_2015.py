@@ -1,8 +1,10 @@
 # INTERNAL IMPORTS
-from shock_cooling_curve.supernova import *
+from shock_cooling_curve.supernova import Supernova
+import numpy as np
+from shock_cooling_curve.utils import utils
+
 
 class PIRO_2015(Supernova):
-
     """
     Class: Wraps around `supernova`, and inherits all `supernova` functionality.
     Produces synthetic photometry for shock-cooling emissions assuming the analytical
@@ -10,47 +12,54 @@ class PIRO_2015(Supernova):
     """
 
     def __init__(self, config_file, path_storage=None):
+        """Initializes PIRO_2015 object.
+
+        Args:
+            config_file (str): name of configuration initialization file (.ini format)
+            path_storage (str, optional): path to where the config file and photometry file (.csv)
+            is stored. Defaults to None (current working directory).
+        """
         
-        self.display_name = "Piro (2015)"
         self.initial = [11, 0.01, 0.1]
         self.lower_bounds = [0.1, 0.0001, 0.0]
         self.upper_bounds = [500, 1, 2]
-        self.units = {'Re': 'R_sun', 'Me': 'M_sun', 'Off': 'days'}
-        self.scale = {'Re': 1, 'Me': 1, 'Off': 1}
+        self.units = {'re': 'R_sun', 'me': 'M_sun', 'off': 'days'}
+        self.scale = {'re': 1, 'me': 1, 'off': 1}
+        self.display_name = "Piro (2015)"
         super().__init__(config_file, path_storage)
 
+    def _tp(self, me, k):
+        return 0.9 * ((k / 0.34) ** 0.5) * (self.bestek3 ** -0.25) * (self.mcore ** 0.17) * ((me / 0.01) ** 0.57)  # days
 
+    def _ee(self, me):
+        return 4e49 * self.bestek3 * (self.mcore ** -0.7) * ((me / 0.01) ** 0.7)
 
-    def luminosity(self, t, Re, Me, ve=None, k=0.2):
+    def _vel(self, me):
+        return 1e5 * 86400.0 * 2e9 * (self.bestek3 ** 0.5) * (self.mcore ** -0.35) * ((me / 0.01) ** -0.15)  # cm/s
 
+    def luminosity(self, t, re, me, ve=None, k=0.34):
         """
-        Luminosity 
+        Analytical formalism for luminosity in Piro 2015.
         """
+        self._t = t
+        self._re = re
+        self._me = me
 
-        def tp(Esn, Mc, Me, k):
-            return 0.9 * ((k / 0.34) ** 0.5) * ((Esn) ** -0.25) * ((Mc) ** 0.17) * ((Me / (0.01)) ** 0.57)  # days
-        # is me in units of 0.01?
 
-        def Ee(Esn, Mc, Me):
-            return 4e49 * (Esn) * ((Mc) ** -0.7) * ((Me / (0.01)) ** 0.7)
+        te = (re * utils.rsun) / self._vel(me)
+        L = ((te * self._ee(me)) /  self._tp(me, k) ** 2.) * \
+            np.exp((-t * (t + 2. * te)) / (2. * self._tp(me, k) ** 2.))
 
-        def ve(Esn, Mc, Me):
-            return 1e5 * (86400.0) * (2e9) * ((Esn) ** 0.5) * ((Mc) ** -0.35) * ((Me / (0.01)) ** -0.15)  # cm/s
-
-        te = (Re * utils.rsun) / ve(self.bestek3, self.mcore, Me)
-        L = ((te * Ee(self.bestek3, self.mcore, Me)) / tp(self.bestek3, self.mcore, Me, k) ** 2.) * \
-            np.exp((-t * (t + 2. * te)) / (2. * tp(self.bestek3, self.mcore, Me, k) ** 2.))
-
-        R = (Re * utils.rsun) + (ve(self.bestek3, self.mcore, Me) * t / (86400.0))
+        R = (re * utils.rsun) + (self._vel(me) * t / 86400.0)
 
         R = np.array([R])
 
         T = (L / (4. * np.pi * (R ** 2.) * utils.sigma)) ** 0.25
 
         T = np.array([T])
-        # print(R, T)
+        # print(r, T)
 
         return R, T
 
-    def f_lam(self, lam, R, T):
-        return (np.pi / (self.dsn ** 2)) * (R ** 2) * (self.BB_lam(lam, T))  # ergs/ s / Ang.
+    def f_lam(self, lam, r, t):
+        return (np.pi / (self.dsn ** 2)) * (r ** 2) * (self.BB_lam(lam, t))  # ergs/ s / Ang.

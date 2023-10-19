@@ -10,14 +10,22 @@ import corner as cn
 
 
 class Plotter:
-    """
-    Plotting modules. Plots best fit results obtained from MCMC sampling or curve fitting.
+    """Plotting modules. Plots best fit results obtained from MCMC sampling or curve fitting.
     """
 
     def __init__(self, sn_obj):
+        """Initializes a Plotter. Contains information required for plotting a light curve.
+
+        Args:
+            sn_obj (Supernova Object): the supernova object that you want to fit
+        """
         self.sn_obj = sn_obj
-        self.params = self.sn_obj.params
-        self.n_params = self.sn_obj.n_params
+        try:
+            self.params = self.sn_obj.params
+            self.n_params = self.sn_obj.n_params
+        except:
+            print('There are no best fit results for this object. To compute',
+                  'this use the Fitter object on ', sn_obj)
         self.objname = self.sn_obj.objname
         self.model_name = self.sn_obj.display_name
         if self.n_params > 3:
@@ -26,32 +34,70 @@ class Plotter:
         else:
             self.MCMC_labels = ["$R_e$", "$M_e$", "$t_{offset}$"]
         self.display_params = dict(zip(self.params, self.MCMC_labels))
+        self.synthetic_phot = {}
 
-    def _get_discrete_values(self, df, flt, of, errorbar_col):
+    def get_synthetic_phot(self):
+        """Gets synthetic photometry values (offset by a integer for every band)
+
+        Returns:
+            dict: key: filter; value: sythetic photometry values for filter
+        """
+        return self.synthetic_phot
+    def _get_discrete_values(self, df, flt, errorbar_col):
+        """Helper function used to obtain discrete values
+
+        Args:
+            df (pd.DataFrame): table containing observed data
+            flt (str): specific observing filter
+            errorbar_col (str): name of column containing observed photometry error or None.
+
+        Returns:
+            tuple: phase data, observed mags, observed magnitude error
+        """
         filtered = df[df[self.sn_obj.flt_colname] == flt].copy()
-        filtered['shifted'] = filtered['MJD_S'] - of
+        filtered['shifted'] = filtered['MJD_S']
         filtered = filtered[filtered['shifted'] > 0]
         times = np.array(filtered['shifted'])
-        mag_all = np.array(filtered[self.sn_obj.mag_colname])
+        mag_all = np.array(filtered[self.sn_obj.rmag_colname])
         if errorbar_col is not None:
             mag_err = np.array(filtered[errorbar_col])
             return times, mag_all, mag_err
         else:
             return times, mag_all, np.zeros(len(mag_all))
-    
-    def _plot_helper(self, df, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
-                              ls='--',
-                              fig=None, ax=None, legend =True, legend_loc='best'):
-        
-        if fig == None and ax == None:
+
+    def _plot_helper(self, df: object, re: float, me: float, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True,
+                     ls='-',
+                     fig=None, ax=None, legend=True, legend_loc='best'):
+        """Helper function used to plot lightcurve in all bands.
+
+        Args:
+            df (pd.DataFrame): table containing observed data
+            re (float): _description_
+            me (float): _description_
+            ve (float, optional): _description_. Defaults to None.
+            of (int, optional): _description_. Defaults to 0.
+            figsize (tuple, optional): _description_. Defaults to (7, 7).
+            errorbar (str, optional): name of column containing observed photometry error. Defaults to None.
+            shift (bool, optional): True if all photometry should be grouped by filter and shifted. Defaults to True.
+            ls (str, optional): linestyle used for synthetic photometry curve. Defaults to '-'.
+            fig (matplotlib.Figure, optional): figure used to plot. Defaults to None.
+            ax (matplotlib.Axes, optional): axes used to plot. Defaults to None.
+            legend (bool, optional): If True, legend is shown. Defaults to True.
+            legend_loc (str or tuple, optional): Any input to matplotlib.legend.loc 
+                (can be tuple of coordinates or string describing position). Defaults to 'best'.
+
+        Returns:
+            tuple: fig, ax, legend elements
+        """
+
+        if fig is None and ax is None:
             fig, ax = plt.subplots(figsize=figsize)
         unique_filts = self.sn_obj.get_filts()
         n = len(unique_filts)
-        minmag = min(df[self.sn_obj.mag_colname]) - n
-        maxmag = max(df[self.sn_obj.mag_colname]) + n
 
         # only get times within shock cooling time range
-        t = np.linspace(0.01, max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]) + 1, 100)
+        t = np.linspace(min(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]),
+                        max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]) + 1, 100)
 
         yerr = errorbar
         if shift:
@@ -61,92 +107,169 @@ class Plotter:
 
         legend_elements = []
         for flt in unique_filts:
-            times, mag_all, mag_err = self._get_discrete_values(df, flt, of,
-                                                    errorbar_col= errorbar)
+            times, mag_all, mag_err = self._get_discrete_values(df, flt, errorbar_col=errorbar)
             off = offset.pop(0)
             mag_all += off
 
             # DISCRETE
-            ax.errorbar(x=times, y=mag_all, yerr=mag_err, fmt='o', markersize=14, markeredgecolor='k',
+            ax.errorbar(x=times, y=mag_all, yerr=mag_err, fmt='o', markersize=14, markeredgecolor='k', capsize=10,
                         color=utils.get_mapping('flt', flt, 'Color'))
 
             legend_elements.append(Patch(facecolor=utils.get_mapping('flt', flt, 'Color'),
                                          label=utils.get_label(flt, off)))
             # CONTINUOUS
-            vals = self.sn_obj._mags_per_filter(t, filtName=flt, Re = Re, Me = Me, ve = ve) + off
-
-            ax.plot(t, vals, linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
-            if legend:
-                ax.legend(handles=legend_elements, frameon=False, ncol=2, loc = legend_loc)
+            vals = self.sn_obj._mags_per_filter(t, filtName=flt, re=re, me=me, ve=ve) + off
+            self.synthetic_phot[flt] = vals
+            cond = np.where(t <= max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]))
+            cond_false = np.where(t > max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]))
+            ax.plot(t[cond], vals[cond], linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
+            ax.plot(t[cond_false], vals[cond_false], linestyle='--', color=utils.get_mapping('flt', flt, 'Color'))
 
             ax.set_title(f'{self.objname} + {self.model_name}')
             ax.set_xlabel('Time from Explosion (days)')
             ax.set_ylabel('Apparent Magnitude (mag)')
-        ax.invert_yaxis()
-        if show:
-            plt.show()
-        return fig
-        
 
-    def plot_full_curve(self, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
-                              ls='--',
-                              fig=None, ax=None, legend=True, legend_loc='best'):
-        '''
-        Plots all observed data points (before and after shock cooling ends.)
+            ax.legend(handles=legend_elements, frameon=False, ncol=2, loc=legend_loc)
+
+        ax.invert_yaxis()
+        if not legend:
+            leg = ax.get_legend()
+            leg.set_visible(False)
+            return fig, ax, legend_elements
+        else:
+            return fig, ax
+
+    def plot_full_curve(self, re, me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True,
+                        ls='--',
+                        fig=None, ax=None, legend=True, legend_loc='best'):
+        """Plots all observed data points (before and after shock cooling ends.)
         Computes fitted magnitudes for times before end of shock cooling.
         Plot shows all observed data points and the fitted shock cooling curve.
-        '''
-        return self._plot_helper(df = self.sn_obj.data_all, Re=Re, Me=Me, ve=ve, of=of, 
-                                 figsize=figsize, errorbar=errorbar, 
-                                 shift=shift, show=show,ls=ls,
-                                 fig=fig, ax=ax, legend=legend, legend_loc=legend_loc)
-    
-    def plot_given_observed_data(self, data, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
-                              ls='--', fig=None, ax=None, legend=True, legend_loc='best'):
-        return self._plot_helper(df = data, Re=Re, Me=Me, ve=ve, of=of, 
-                                 figsize=figsize, errorbar=errorbar, 
-                                 shift=shift, show=show, ls=ls, 
+
+        Args:
+            df (pd.DataFrame): table containing observed data
+            re (float): radius of extended material
+            me (float): mass of extended material
+            ve (float, optional): shock velocity. Defaults to None.
+            of (int, optional): time offset from start of SN. Defaults to 0.
+            figsize (tuple, optional): matplotlib figure size. Defaults to (7, 7).
+            errorbar (str, optional): name of column containing observed photometry error. Defaults to None.
+            shift (bool, optional): True if all photometry should be grouped by filter and shifted. Defaults to True.
+            ls (str, optional): linestyle used for synthetic photometry curve. Defaults to '-'.
+            fig (matplotlib.Figure, optional): figure used to plot. Defaults to None.
+            ax (matplotlib.Axes, optional): axes used to plot. Defaults to None.
+            legend (bool, optional): If True, legend is shown. Defaults to True.
+            legend_loc (str or tuple, optional): Any input to matplotlib.legend.loc 
+                (can be tuple of coordinates or string describing position). Defaults to 'best'.
+
+        Returns:
+            tuple: fig, ax, legend elements
+        """
+        return self._plot_helper(df=self.sn_obj.data_all, re=re, me=me, ve=ve, of=of,
+                                 figsize=figsize, errorbar=errorbar,
+                                 shift=shift, ls=ls,
                                  fig=fig, ax=ax, legend=legend, legend_loc=legend_loc)
 
-    def plot_given_parameters(self, Re, Me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True, show=True,
+    def plot_given_observed_data(self, data, re, me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True,
+                                 ls='--', fig=None, ax=None, legend=True, legend_loc='best'):
+        '''
+        Plots given observed data points.
+        Computes fitted magnitudes for times before end of shock cooling.
+        Plot shows given observed data points and the fitted shock cooling curve (to shock cooling data).
+
+        Args:
+            df (pd.DataFrame): table containing observed data
+            re (float): radius of extended material
+            me (float): mass of extended material
+            ve (float, optional): shock velocity. Defaults to None.
+            of (int, optional): time offset from start of SN. Defaults to 0.
+            figsize (tuple, optional): matplotlib figure size. Defaults to (7, 7).
+            errorbar (str, optional): name of column containing observed photometry error. Defaults to None.
+            shift (bool, optional): True if all photometry should be grouped by filter and shifted. Defaults to True.
+            ls (str, optional): linestyle used for synthetic photometry curve. Defaults to '-'.
+            fig (matplotlib.Figure, optional): figure used to plot. Defaults to None.
+            ax (matplotlib.Axes, optional): axes used to plot. Defaults to None.
+            legend (bool, optional): If True, legend is shown. Defaults to True.
+            legend_loc (str or tuple, optional): Any input to matplotlib.legend.loc 
+                (can be tuple of coordinates or string describing position). Defaults to 'best'.
+
+        Returns:
+            tuple: fig, ax, legend elements
+        '''
+        return self._plot_helper(df=data, re=re, me=me, ve=ve, of=of,
+                                 figsize=figsize, errorbar=errorbar,
+                                 shift=shift, ls=ls,
+                                 fig=fig, ax=ax, legend=legend, legend_loc=legend_loc)
+
+    def plot_given_parameters(self, re, me, ve=None, of=0, figsize=(7, 7), errorbar=None, shift=True,
                               ls='--',
-                              fig=None, ax=None):
+                              fig=None, legend=False, legend_loc=None, ax=None):
         '''
         Plots all observed data points before shock cooling ends.
         Computes fitted magnitudes for times before end of shock cooling.
         Plot shows all observed data points and the fitted shock cooling curve.
+
+        Args:
+            df (pd.DataFrame): table containing observed data
+            re (float): radius of extended material
+            me (float): mass of extended material
+            ve (float, optional): shock velocity. Defaults to None.
+            of (int, optional): time offset from start of SN. Defaults to 0.
+            figsize (tuple, optional): matplotlib figure size. Defaults to (7, 7).
+            errorbar (str, optional): name of column containing observed photometry error. Defaults to None.
+            shift (bool, optional): True if all photometry should be grouped by filter and shifted. Defaults to True.
+            ls (str, optional): linestyle used for synthetic photometry curve. Defaults to '-'.
+            fig (matplotlib.Figure, optional): figure used to plot. Defaults to None.
+            ax (matplotlib.Axes, optional): axes used to plot. Defaults to None.
+            legend (bool, optional): If True, legend is shown. Defaults to True.
+            legend_loc (str or tuple, optional): Any input to matplotlib.legend.loc 
+                (can be tuple of coordinates or string describing position). Defaults to 'best'.
+
+        Returns:
+            tuple: fig, ax, legend elements
         '''
-        return self._plot_helper(df = self.sn_obj.reduced_df, Re=Re, Me=Me, ve=ve, of=of,
-                                 figsize=figsize, errorbar=errorbar, 
-                                 shift=shift, show=show, ls=ls, 
+        return self._plot_helper(df=self.sn_obj.reduced_df, re=re, me=me, ve=ve, of=of,
+                                 figsize=figsize, errorbar=errorbar,
+                                 shift=shift, ls=ls,
                                  fig=fig, ax=ax, legend=legend, legend_loc=legend_loc)
 
-
-
     def MCMC_trace(self, burnin=0, color=False):
-        """
-        Generates the sampler trace plots for all the walkers used in MCMC sampling.
+        """Generates MCMC sampler chain plot.
+
+        Args:
+            burnin (int, optional): number of steps to eliminate before plotting. Defaults to 0.
+            color (bool, optional): If True, each walker is a different color. Defaults to False.
+
+        Returns:
+            matplotlib.Figure: plot figure
         """
         fig, axs = plt.subplots(self.n_params, 1, figsize=(10, 16))
         for i in range(self.n_params):
             p = self.params[i]
             if color:
-                axs[i].plot(np.array(self.sn_obj.MCMC_sampler[p][:, burnin:]).T, alpha=0.5);
+                axs[i].plot(np.array(self.sn_obj.MCMC_sampler[p][:, burnin:] * self.sn_obj.scale[p]).T, alpha=0.5);
             else:
-                axs[i].plot(np.array(self.sn_obj.MCMC_sampler[p][:, burnin:]).T, color='k', alpha=0.5);
+                axs[i].plot(np.array(self.sn_obj.MCMC_sampler[p][:, burnin:] * self.sn_obj.scale[p]).T, color='k',
+                            alpha=0.5);
 
             axs[i].set_title(f"{self.display_params[p]}")
         plt.suptitle(f'{self.objname} + {self.model_name} parameter sampler chains')
-        
-        #fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}")
+
+        fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}")
 
         return fig
 
     def MCMC_corner(self, burnin=0):
-        """
-        Generates corner plot for the posterior distributions of parameter values.
+        """Generates corner plot for the posterior distributions of parameter values.
+
+        Args:
+            burnin (int, optional): number of steps to eliminate before plotting posterior. Defaults to 0.
+
+        Returns:
+            matplotlib.Figure: plot figure
         """
         samples = self.sn_obj.samp_chain[:, burnin:, :].reshape((-1, self.n_params))
+        print(samples.shape)
         fig = cn.corner(
             samples,
             labels=self.MCMC_labels,
@@ -157,15 +280,15 @@ class Plotter:
         return fig
 
     def make_video(self, ve=0.2, of=0.1):
-        '''
-        This function will make a video depicting how the shock cooling curve changes for the given dataset
+        """This function will make a video depicting how the shock cooling curve changes for the given dataset
         at discrete values for mass and radius of envelope. It assumes fixed shock velocity and time offset.
 
         This functionality only exists for the Sapir Waxman (BSG and RSG) models and Piro 2020.
-        :param ve: (Optional) Velocity of shock moving outwards - fixed at input value.
-        :param of: (Optional) Time offset (in days) from SN explosion - fixed at input value.
-        :return:
-        '''
+
+        Args:
+            ve (float, optional): shock velocity. Defaults to 0.2. (2000 km/s)
+            of (float, optional): time offset from start of SN. Defaults to 0.1. (0.1 days)
+        """
 
         metadata = dict(title='Shock Cooling', artist='Matplotlib', comment='Shock Cooling Fit with varying me and re')
         writer = FFMpegWriter(fps=4, metadata=metadata)
@@ -179,8 +302,8 @@ class Plotter:
                 for m in [0.1, 0.3, 0.5, 0.7]:
                     plt.clf()
                     plt.gca().invert_yaxis()
-                    test_values = self.sn_obj.get_all_mags(times=phase_combo, Re=r, Me=m, ve=ve, of=of)
-                    test_sr = self.sn_obj.get_all_mags(times=sr, Re=r, Me=m, ve=ve, of=of)
+                    test_values = self.sn_obj.get_all_mags(times=phase_combo, re=r, me=m, ve=ve, of=of)
+                    test_sr = self.sn_obj.get_all_mags(times=sr, re=r, me=m, ve=ve, of=of)
                     plt.scatter(phase_combo, mags, label='original')
                     plt.plot(sr, test_sr, label='continuous')
                     plt.scatter(phase_combo, test_values, label='fitted')
