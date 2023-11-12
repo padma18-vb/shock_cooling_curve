@@ -37,14 +37,14 @@ class PIRO_2015(Supernova):
     def _vel(self, me):
         return 1e5 * 86400.0 * 2e9 * (self.bestek3 ** 0.5) * (self.mcore ** -0.35) * ((me / 0.01) ** -0.15)  # cm/s
 
-    def luminosity(self, t, re, me, ve=None, k=0.34):
+    def luminosity(self, t, re, me, ve=None):
         """
         Analytical formalism for luminosity in Piro 2015.
         """
         self._t = t
         self._re = re
         self._me = me
-
+        k = self.kappa
 
         te = (re * utils.rsun) / self._vel(me)
         L = ((te * self._ee(me)) /  self._tp(me, k) ** 2.) * \

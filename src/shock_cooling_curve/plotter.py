@@ -29,10 +29,10 @@ class Plotter:
         self.objname = self.sn_obj.objname
         self.model_name = self.sn_obj.display_name
         if self.n_params > 3:
-            self.MCMC_labels = ["$R_e$", "$M_e$", "$v_{shock}$", "$t_{offset}$"]
+            self.MCMC_labels = ["$R_e / R_\odot\ $", "$M_e / M_\odot\ $", "$v_{shock} (10^9 cm/s) $", "$t_{offset}$ (days)"]
 
         else:
-            self.MCMC_labels = ["$R_e$", "$M_e$", "$t_{offset}$"]
+            self.MCMC_labels = ["$R_e / R_\odot\ $", "$M_e / M_\odot\ $",  "$t_{offset}$ (days)"]
         self.display_params = dict(zip(self.params, self.MCMC_labels))
         self.synthetic_phot = {}
 
@@ -55,10 +55,14 @@ class Plotter:
             tuple: phase data, observed mags, observed magnitude error
         """
         filtered = df[df[self.sn_obj.flt_colname] == flt].copy()
+        #dates
         filtered['shifted'] = filtered['MJD_S']
+
         filtered = filtered[filtered['shifted'] > 0]
         times = np.array(filtered['shifted'])
+        # photometry
         mag_all = np.array(filtered[self.sn_obj.rmag_colname])
+        
         if errorbar_col is not None:
             mag_err = np.array(filtered[errorbar_col])
             return times, mag_all, mag_err
@@ -96,10 +100,9 @@ class Plotter:
         n = len(unique_filts)
 
         # only get times within shock cooling time range
-        t = np.linspace(min(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]),
+        t = np.linspace(0.001,
                         max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]) + 1, 100)
 
-        yerr = errorbar
         if shift:
             offset = utils.build_offset(n)
         else:
@@ -110,16 +113,20 @@ class Plotter:
             times, mag_all, mag_err = self._get_discrete_values(df, flt, errorbar_col=errorbar)
             off = offset.pop(0)
             mag_all += off
+            times -= of
 
             # DISCRETE
+
             ax.errorbar(x=times, y=mag_all, yerr=mag_err, fmt='o', markersize=14, markeredgecolor='k', capsize=10,
                         color=utils.get_mapping('flt', flt, 'Color'))
 
             legend_elements.append(Patch(facecolor=utils.get_mapping('flt', flt, 'Color'),
                                          label=utils.get_label(flt, off)))
+            
             # CONTINUOUS
             vals = self.sn_obj._mags_per_filter(t, filtName=flt, re=re, me=me, ve=ve) + off
             self.synthetic_phot[flt] = vals
+
             cond = np.where(t <= max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]))
             cond_false = np.where(t > max(self.sn_obj.reduced_df[self.sn_obj.shift_date_colname]))
             ax.plot(t[cond], vals[cond], linestyle=ls, color=utils.get_mapping('flt', flt, 'Color'))
@@ -268,20 +275,26 @@ class Plotter:
         Returns:
             matplotlib.Figure: plot figure
         """
-        samples = self.sn_obj.samp_chain[:, burnin:, :].reshape((-1, self.n_params))
-        print(samples.shape)
+        samples = (self.sn_obj.MCMC_sampler['re'][:, burnin:] * self.sn_obj.scale['re']).flatten()
+        for i in range(self.n_params - 1):
+            p = self.params[i+1]
+            samples = np.vstack((samples, (self.sn_obj.MCMC_sampler[p][:, burnin:] * self.sn_obj.scale[p]).flatten()))
+
         fig = cn.corner(
-            samples,
+            samples.T,
             labels=self.MCMC_labels,
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12, "loc": "left"})
-        fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}")
-        return fig
+        fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}", x=0.7)
+
+        
+        return samples
 
     def make_video(self, ve=0.2, of=0.1):
         """This function will make a video depicting how the shock cooling curve changes for the given dataset
-        at discrete values for mass and radius of envelope. It assumes fixed shock velocity and time offset.
+        at discrete values for mass and radius of envelope. It assumes fixed shock velocity (in 10^9 cm/s) and time offset
+        (in days).
 
         This functionality only exists for the Sapir Waxman (BSG and RSG) models and Piro 2020.
 

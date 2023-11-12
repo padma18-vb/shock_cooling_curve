@@ -27,7 +27,7 @@ class SW_RSG(Supernova):
         self.upper_bounds = [10, 10, 10, 0.5]
         super().__init__(config_file, path_storage)
 
-    def luminosity(self, t, re, me, ve, kappa=0.34):
+    def luminosity(self, t, re, me, ve):
         """Applies the analytic model described in Sapir & Waxman (2017) for a red supergiant 
         (i.e density slope = 3/2).
 
@@ -36,14 +36,13 @@ class SW_RSG(Supernova):
             re (float): radius of progenitor envelope
             me (float): mass of progenitor envelope
             ve (float): velocity of shock
-            kappa (float, optional): Opacity. Defaults to 0.34.
 
         Returns:
             : tuple of two arrays containing radius and temperature values
         """
 
         M = self.mcore + me  # solar mass
-        k = kappa / 0.34  # 1.
+        k = self.kappa / 0.34  # 1.
         fp = (me / self.mcore) ** 0.5  # n=3/2
         vs = (ve * 1e9) / (10 ** 8.5)  # *10^4
 

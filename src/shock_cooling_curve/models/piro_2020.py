@@ -10,7 +10,6 @@ class PIRO_2020(Supernova):
     """
     # these number were derived using numerical simulations
     n = 10  # density index; typical value = 10
-    kap = 0.34  # cm^2/g; optical depth = 0.34 (assumes electron scattering opacity)
     K = 0.119  # typical value; K = [(n - 3) * (3 - delta)]/[4*pi * (n - delta)]
     delta = 1.1  # typical value
 
@@ -31,22 +30,60 @@ class PIRO_2020(Supernova):
         super().__init__(config_file, path_storage)
 
     def _td(self, m, v):
-        numerator = 3 * self.kap * self.K * m
+        """Time at which diffusion depth reaches vt.
+
+        Args:
+            m (float): mass in g
+            v (float): velocity in cm/s
+
+        Returns:
+            float: time in s
+        """
+        numerator = 3 * self.kappa * self.K * m
         denominator = (self.n - 1) * v * utils.c
         return (numerator / denominator) ** 0.5  # seconds
 
     def _tph(self, m, v):
-        numerator = 3 * self.kap * self.K * m
+        """Time at which photosphere depth reaches vt
+
+        Args:
+            m (float): mass in g
+            v (float): velocity in cm/s
+
+        Returns:
+            float: time in s
+        """
+        numerator = 3 * self.kappa * self.K * m
         denominator = 2 * (self.n - 1) * v ** 2
         return (numerator / denominator) ** 0.5  # seconds
 
     def _rph_early(self, t, m, v):
+        """Radius before _tph
+
+        Args:
+            t (float): time in seconds
+            m (float): mass in g
+            v (float): velocity in cm/s
+
+        Returns:
+            float: radius in cm
+        """
         time_term = self._tph(m, v) / t
         power = 2 / (self.n - 1)
 
         return (time_term ** power) * v * t
 
     def _rph_late(self, t, m, v):
+        """Radius after _tph
+
+        Args:
+            t (float): time in seconds
+            m (float): mass in g
+            v (float): velocity in cm/s
+
+        Returns:
+            float: radius in cm
+        """
         power = -1 / (self.delta - 1)
         first_term = (self.delta - 1) / (self.n - 1)
         time_term = (t / self._tph(m, v)) ** 2
@@ -57,6 +94,15 @@ class PIRO_2020(Supernova):
         using radius and temperature assuming a blackbody relationship. Typical values in this
         section are assumed from Chevalier & Soker (1989) 
         [https://ui.adsabs.harvard.edu/abs/1989ApJ...341..867C/abstract]
+
+        Args:
+            t (float): time in MJD (starting from SN start time)
+            re (float): envelope radius
+            me (float): envelope mass
+            ve (float): shock velocity
+
+        Returns:
+            tuple: radius and temperature of shock cooling emission at provided time
         """
 
         vt_cgs = ve * 1e9  # cm / s
@@ -66,7 +112,7 @@ class PIRO_2020(Supernova):
         t_cgs = np.array([t]).flatten() * 86400  # days to seconds
         l_cgs = np.ones(len(t_cgs))
 
-        prefactor = (np.pi / 3) * ((self.n - 1) / (self.n - 5)) * ((utils.c * re_cgs * vt_cgs ** 2) / self.kap)
+        prefactor = (np.pi / 3) * ((self.n - 1) / (self.n - 5)) * ((utils.c * re_cgs * vt_cgs ** 2) / self.kappa)
         t_smaller_td = np.where(t_cgs < self._td(me_cgs, vt_cgs))
         t_larger_td = np.where(t_cgs >= self._td(me_cgs, vt_cgs))
         l_cgs[t_smaller_td] = np.array(prefactor * (self._td(me_cgs, vt_cgs) / t_cgs) ** (4 / (self.n - 2)))[

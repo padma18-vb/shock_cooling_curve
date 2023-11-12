@@ -210,22 +210,21 @@ class Supernova(object):
         Returns:
             pd.DataFrame: modified dataframe with "RMAG" column containing extinction-correct AB mags.
         """
-
-        df[self.rmag_colname] = df.apply(
+        ext_app = df.apply(
             lambda x: self.reduce(x[self.mag_colname], x[self.flt_colname]), axis=1)
-        df[self.rmag_colname] = df.apply(
+        df[self.rmag_colname] = ext_app
+        vega_conv = df.apply(
             lambda x: self.convertAB_Vega(x[self.rmag_colname], x[self.flt_colname], x['Vega']), axis=1)
+        df[self.rmag_colname] = vega_conv
         return df
 
     def _build_df(self):
         """Helper function to filter only the data during shock cooling.
         """
         # read in data from photometry file
-        self.data_all = pd.read_csv(self.make_path(self.filename), index_col=0)
-
+        self.data_all = pd.read_csv(self.make_path(self.filename))
         # convert vega to AB mag and apply extinction
         reduced_df = self.add_red_mag(self.data_all)
-
         # add column "MJD_S" which converts MJD dates to SN start reference frame (starting from 0)
         reduced_df = reduced_df.assign(MJD_S=reduced_df[self.date_colname] - self.start_sn)
         self.data_all = reduced_df.copy(deep=True)
@@ -325,15 +324,15 @@ class Supernova(object):
         return mags
 
     def get_all_mags(self, times, *args):
-        '''
-        Obtains 
-        :param times: Times at which data is available
-        :param re: Radius of envelope
-        :param me: Mass of envelope
-        :param ve: Velocity of wave moving out
-        :param off: Offset for observation time
-        :return: array of all mags at specified time according to filter
-        '''
+        """Obtains synthetic photometry values given times and fitting parameters (e.g.: re, me, ve, off).
+
+        Args:
+            times (array-like): observed time values
+
+        Returns:
+            array-like: synthetic photometry values
+        """
+
         filters = np.array(self.reduced_df['FLT'])
         if len([*args]) == 3:
             re, me, off = args
@@ -357,6 +356,11 @@ class Supernova(object):
         return
 
     def save_bounds(self, config_file):
+        """Saves input bounds for fitting to configuration file
+
+        Args:
+            config_file (.ini file): supernova config file
+        """
         config_file = self.make_path(config_file)
         config = configparser.ConfigParser()
         config.read(config_file)
@@ -375,6 +379,11 @@ class Supernova(object):
             config.write(configfile)
 
     def get_curvefit_values(self):
+        """Returns best-fit curve fit values
+
+        Returns:
+            tuple: contains two dictionaries - [keys]: param names and [values]: best fit values
+        """
         try:
             return self.CF_fitted_params, self.CF_fitted_errors
         except:
@@ -383,6 +392,11 @@ class Supernova(object):
         return
 
     def get_MCMC_values(self):
+        """Returns best-fit MCMC values
+
+        Returns:
+            tuple: contains two dictionaries - [keys]: param names and [values]: best fit values
+        """
         try:
             return self.MCMC_fitted_params, self.MCMC_fitted_errors
         except:
@@ -390,6 +404,14 @@ class Supernova(object):
                   "Fitter.MCMC_fitter().")
 
     def get_model_performance(self, params):
+        """Computes reduced chi-squared values given fit-parameters
+
+        Args:
+            params (dict): parameter name keys mapped to fit values
+
+        Returns:
+            float: reduced chi-squared value of fit
+        """
         xdata_phase = np.array(self.reduced_df[self.shift_date_colname])
         ydata_mag = np.array(self.reduced_df[self.rmag_colname])
         yerr_mag = np.array(self.reduced_df[self.magerr_colname])

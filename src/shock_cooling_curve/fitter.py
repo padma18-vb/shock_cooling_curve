@@ -96,8 +96,8 @@ class Fitter:
 
         min_func = lambda *args: self._loglikelihood_gauss(*args)
 
-        return opt.minimize(min_func, x0=self.sn_obj.initial,
-                            args=(self.xdata_phase, self.ydata_mag, self.yerr_mag), bounds=bounds)
+        return opt.minimize(min_func, x0=self.sn_obj.initial, method='L-BFGS-B',
+                            args=(self.xdata_phase, self.ydata_mag, self.yerr_mag), bounds=bounds, options={'maxiter':10000})
 
     def _get_val(self, param, value_dict, err_dict):
         """helper function to get one particular scaled value
@@ -114,7 +114,7 @@ class Fitter:
         return value_dict[param] * self.sn_obj.scale[param], err_dict[param] * self.sn_obj.scale[param]
 
     @property
-    def get_cf_RE(self):
+    def cf_RE(self):
         """Best fit non-linear least squares curve fit value for envelope radius in solar radii.
 
         Returns:
@@ -127,7 +127,7 @@ class Fitter:
         return self._get_val(param, vdict, edict)
 
     @property
-    def get_cf_ME(self):
+    def cf_ME(self):
         """Best fit non-linear least squares curve fit value for envelope mass in solar masses.
 
         Returns:
@@ -141,7 +141,7 @@ class Fitter:
         return self._get_val(param, vdict, edict)
 
     @property
-    def get_cf_VE(self):
+    def cf_VE(self):
         """Best fit non-linear least squares curve fit value for shock velocity in 10^9 cm/s.
 
         Returns:
@@ -158,7 +158,7 @@ class Fitter:
             return None, None
 
     @property
-    def get_cf_OF(self):
+    def cf_OF(self):
         """Best fit non-linear least squares curve fit value for time offset from start of supernova in days.
 
         Returns:
@@ -285,7 +285,8 @@ class Fitter:
                  sigma=1,
                  use_initial_params=None,
                  initialize_using_CF=True,
-                 minimize_param_space=False):
+                 minimize_param_space=False,
+                 burnin=0):
         """Carries out MCMC Sampling to shock cooling model to observed data.
 
         Args:
@@ -351,16 +352,25 @@ class Fitter:
             sampler.run_mcmc(pos, nsteps=nsteps, progress=True)
         self.samp_chain = sampler.chain
         self.sn_obj.samp_chain = sampler.chain
-        self.set_MCMC_bounds_errs(sigma=sigma)
+        self.set_MCMC_bounds_errs(sigma=sigma, burnin=burnin)
         return self.samp_chain
 
-    def set_MCMC_bounds_errs(self, sigma):
+    def set_MCMC_bounds_errs(self, sigma, burnin=0):
+        """Resets MCMC best fit results according to sigma-level provided and burnin.
+
+        Args:
+            sigma (int): error bound sigma level
+            burnin (int, optional): number of walkers to neglect before computing best fit parameter. Defaults to 0.
+
+        Returns:
+            tuple: tuple of dicts containing best fit parameters and error bounds for each parameter.
+        """
         self.sn_obj.MCMC_fitted_params = {}
         self.sn_obj.MCMC_fitted_errors = {}
         self.sn_obj.MCMC_sampler = {}
         for i in range(self.n_params):
             param = self.params[i]
-            param_arr = self.samp_chain[:, :, i]
+            param_arr = self.samp_chain[:, burnin:, i]
             self.sn_obj.MCMC_sampler[param] = param_arr
             self.sn_obj.MCMC_fitted_params[param] = np.median(param_arr)
             data_within_sig = np.percentile(param_arr, sigma * 34)
@@ -370,20 +380,33 @@ class Fitter:
 
         return self.sn_obj.MCMC_fitted_params, self.sn_obj.MCMC_fitted_errors
 
-    def save_chain_local(self, local_path):
+    def save_chain_local(self, local_path="", burnin=0):
+        """Saves MCMC chains to local path in separate csv files for each parameter.
+
+        Args:
+            local_path (str, optional): location where you want to store the MCMC chains. 
+                Defaults to current working directory.
+            burnin (int, optional): number of steps to remove before saving the chain.
+                Defaults to 0.
+
+        Returns:
+            list: locations of saved MCMC chains
+        """
         locations = []
         for i in range(self.samp_chain.shape[-1]):
-            df = pd.DataFrame(self.samp_chain[:, :, i])
-            filepath = os.path.join(local_path, f'{self.sn_obj.model_name}_{self.params[i]}_chain.csv')
+            df = pd.DataFrame(self.samp_chain[:, burnin:, i])
+            filepath = os.path.join(local_path, f'{self.sn_obj.objname}_{self.sn_obj.model_name}_{self.params[i]}_chain.csv')
             locations.append(filepath)
             df.to_csv(filepath)
         print(f'MCMC sampler chains saved at the locations listed here: {locations}')
         return locations
 
     @property
-    def get_MCMC_RE(self):
-        """
-        :return: Best fit non-linear least squares curve fit value for envelope mass in solar mass.
+    def MCMC_RE(self):
+        """Best fit result for progenitor envelope radius computed by MCMC
+
+        Returns:
+            tuple: best fit radius and uncertainty
         """
         param = "re"
         vdict = self.sn_obj.MCMC_fitted_params
@@ -392,20 +415,24 @@ class Fitter:
         return self._get_val(param, vdict, edict)
 
     @property
-    def get_MCMC_ME(self):
+    def MCMC_ME(self):
+        """Best fit result for progenitor envelope mass computed by MCMC
+
+        Returns:
+            tuple: best fit mass and uncertainty
         """
-        :return: Best fit non-linear least squares curve fit value for envelope mass in solar mass.
-        """
-        param = "re"
+        param = "me"
         vdict = self.sn_obj.MCMC_fitted_params
         edict = self.sn_obj.MCMC_fitted_errors
 
         return self._get_val(param, vdict, edict)
 
     @property
-    def get_MCMC_VE(self):
-        """
-        :return: Best fit non-linear least squares curve fit value for velocity of explosion in cm/s.
+    def MCMC_VE(self):
+        """Best fit result for shock velocity computed by MCMC
+
+        Returns:
+            tuple: best fit shock velocity and uncertainty
         """
         try:
             param = "ve"
@@ -418,9 +445,11 @@ class Fitter:
             return None, None
 
     @property
-    def get_MCMC_OF(self):
-        """
-        :return: Best fit non-linear least squares curve fit value for offset from given time of explosion in days.
+    def MCMC_OF(self):
+        """Best fit result for time offset from start of SN computed by MCMC
+
+        Returns:
+            tuple: best fit time offset and uncertainty
         """
         param = "Off"
         vdict = self.sn_obj.MCMC_fitted_params
