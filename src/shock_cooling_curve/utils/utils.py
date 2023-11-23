@@ -72,8 +72,10 @@ def get_label(flt, off):
     Returns:
         str: label describing filter
     """
-    if off >= 0:
+    if off > 0:
         return f'{flt} + {abs(off)}'
+    elif off == 0:
+        return f'{flt}'
     return f'{flt} - {abs(off)}'
 
 

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=40.8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "shock_cooling_curve"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
     'importlib-metadata >= 1.0 ; python_version < "3.8"',
     'numpy',
@@ -23,7 +23,7 @@ description = "A python module used to model the shock cooling emission from dou
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.8"
 keywords = ["core collapse supernovae", "shock cooling emission", "double peaked lightcurves",
-    "non linear least curve modelling", "MCMC sampling"
+    "non-linear least squares fitting", "MCMC sampling"
 ]
 
 license = {text = "MIT License"}
