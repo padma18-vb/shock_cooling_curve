@@ -54,4 +54,5 @@ file and fill out all the entries in the DEFAULT section. The BOUNDS section is 
 to [filter_info.csv](https://github.com/padma18-vb/shock_cooling_curve/blob/main/templates/filter_info.csv) under templates.
    
 Related Papers:
+[shock_cooling_curve: A Python-Based Package for Extensive and Efficient Modeling of Shock Cooling Emission in Supernovae](https://arxiv.org/abs/2312.15585)
 [The Circumstellar Environments of Double-Peaked, Calcium-strong Supernovae 2021gno and 2021inl](https://arxiv.org/abs/2203.03785)
