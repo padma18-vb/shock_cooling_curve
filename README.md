@@ -1,5 +1,6 @@
 # shock-cooling-curve
 ## Introduction
+We wrote a research note for this tool here: [arxiv: 2312.15585](https://arxiv.org/abs/2312.15585).
 This package can be used to fit double-peaked supernova light curves using the following shock cooling emission models:
 
 1. [PIRO 2015](https://ui.adsabs.harvard.edu/abs/2015ApJ...808L..51P/abstract)
