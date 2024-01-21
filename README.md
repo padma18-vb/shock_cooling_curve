@@ -1,6 +1,7 @@
 # shock-cooling-curve
 ## Introduction
-We wrote a research note for this tool here: arxiv: [2312.15585](https://arxiv.org/abs/2312.15585). This package can be used to fit double-peaked supernova light curves using the following shock cooling emission models:
+We wrote a research note for this tool here: [arxiv: 2312.15585](https://arxiv.org/abs/2312.15585).
+This package can be used to fit double-peaked supernova light curves using the following shock cooling emission models:
 
 1. [PIRO 2015](https://ui.adsabs.harvard.edu/abs/2015ApJ...808L..51P/abstract)
 2. [Sapir-Waxman 2017](https://ui.adsabs.harvard.edu/abs/2017ApJ...838..130S/abstract)
@@ -58,6 +59,5 @@ file and fill out all the entries in the DEFAULT section. The BOUNDS section is 
 to [filter_info.csv](https://github.com/padma18-vb/shock_cooling_curve/blob/main/templates/filter_info.csv) under templates.
    
 Related Papers:
-[shock_cooling_curve: A Python-Based Package for Extensive and Efficient Modeling of Shock Cooling Emission in Supernovae](https://arxiv.org/abs/2312.15585),
-
+[shock_cooling_curve: A Python-Based Package for Extensive and Efficient Modeling of Shock Cooling Emission in Supernovae](https://arxiv.org/abs/2312.15585)
 [The Circumstellar Environments of Double-Peaked, Calcium-strong Supernovae 2021gno and 2021inl](https://arxiv.org/abs/2203.03785)
