@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import shock_cooling_curve.supernova
 from multiprocessing import Pool
+from shock_cooling_curve.utils import utils
 
 
 class Fitter:
@@ -12,7 +13,7 @@ class Fitter:
     Non-linear least squares fitting and MCMC sampling are currently implemented.
     """
 
-    def __init__(self, sn_obj):
+    def __init__(self, sn_obj, log=False):
         """Initializes a Fitter object to carry out all fitting methods and parameters.
         Instantiates required data and analytical function required for fitting.
         Args:
@@ -23,10 +24,14 @@ class Fitter:
         self.xdata_phase = np.array(data[self.sn_obj.shift_date_colname])
         self.ydata_mag = np.array(data[self.sn_obj.rmag_colname])
         self.yerr_mag = np.array(data[self.sn_obj.magerr_colname])
-
-        self.func = self.sn_obj.get_all_mags
         self.params = self.sn_obj.params
         self.n_params = self.sn_obj.n_params
+        self.sample_from_log = log
+        
+    def func(self, times, *args):
+        if self.sample_from_log:
+            args = self.convert_to_linear(args)
+        return self.sn_obj.get_all_mags(times, *args)
 
     def nl_curve_fit(self, lower_bounds=None, upper_bounds=None, initial_guess=None):
         """Non-linear least squares curve fitting method. Adopts scipy.optimize.curve_fit
@@ -68,12 +73,23 @@ class Fitter:
             sigma=self.yerr_mag,
             bounds=(self.sn_obj.lower_bounds, self.sn_obj.upper_bounds)
         )
+        
+        if self.sample_from_log:
+            popt, pcov = self.convert_to_linear(popt), self.convert_to_linear(pcov)
         sigma = np.sqrt(np.diag(pcov))
-
         self.sn_obj.CF_fitted_params = dict(zip(self.params, popt))
         self.sn_obj.CF_fitted_errors = dict(zip(self.params, sigma))
 
         return popt, sigma
+    
+    def convert_to_linear(self, vals):
+        if len(vals)==4:
+            scalings = np.array(list(self.sn_obj.scale.values())) * np.array([utils.rsun, utils.msun, 1e9, 1])
+        else:
+            scalings = np.array(list(self.sn_obj.scale.values())) * np.array([utils.rsun, utils.msun, 1])
+        vals = np.power(10, vals)
+        vals = vals / scalings
+        return vals
 
     def minimize(self, initial_guess=None):
         """Applies scipy.optimize.minimize. No bounds are taken.
@@ -223,9 +239,12 @@ class Fitter:
         Returns:
             array-like: Modelled magnitudes at given input parameter values. Returned "modelled" y-data corresponding to xdata input.
         """
-        args = p
-        return self.func(xdata, *args)
 
+        args = p
+        func_result = self.func(xdata, *args)
+        # if self.sample_from_log:
+        #     p = np.log10(p)
+        return func_result
     def _loglikelihood_gauss(self, p, xdata, ydata, yerr):
         """Helper function used in MCMC sampling. Computes log likelihood of observing input ydata, given parameter
         values p.
@@ -238,8 +257,10 @@ class Fitter:
         Returns:
             array-like: log-likelihood of observing data given parameters. Assuming a gaussian likelihood function.
         """
-        return -0.5 * (np.sum(((ydata - self._analytical_model(p, xdata)) ** 2) / (yerr ** 2) + np.log(
+
+        lik = -0.5 * (np.sum(((ydata - self._analytical_model(p, xdata)) ** 2) / (yerr ** 2) + np.log(
             (2 * np.pi * yerr ** 2) ** 2)))  # we're assuming f = 0
+        return lik
 
     def _logprior_uniform(self, p):
         """Helper function used in MCMC sampling. Set uniform prior for each parameter in p within input bounds.
@@ -280,6 +301,7 @@ class Fitter:
     def MCMC_fit(self,
                  prior_low: list,
                  prior_high: list,
+                 initial_range = 1e-3,
                  nwalkers=50,
                  nsteps=500,
                  sigma=1,
@@ -314,7 +336,7 @@ class Fitter:
             assert np.all(use_initial_params > self.prior_low) and np.all(
                 use_initial_params < self.prior_high), "The initial values you have provided are out of the uniform prior's bounds."
             use_initial_params = np.array(use_initial_params)
-            pos = use_initial_params + 1e-3 * use_initial_params * np.random.randn(nwalkers, ndim)
+            pos = use_initial_params + initial_range * use_initial_params * np.random.randn(nwalkers, ndim)
 
         else:
             print("Initial values were not provided. Using results from curve fitting as initial parameters.")
@@ -323,6 +345,8 @@ class Fitter:
                     list(self.sn_obj.CF_fitted_errors.values()))
             except:
                 fitted, errs = self.nl_curve_fit()
+            if self.sample_from_log:
+                fitted, errs = np.log10(fitted), np.log10(errs)
 
             # make sure that the initial parameters obtained using curve fit are within prior bounds
             # if they are not, use the error instead (seems to be well behaved if param is not)
@@ -340,19 +364,25 @@ class Fitter:
                 print(f'Updated prior_high = {self.prior_high}')
 
             if initialize_using_CF:
-                pos = fitted + 1e-3 * fitted * np.random.randn(nwalkers, ndim)
+                pos = fitted + initial_range * fitted * np.random.randn(nwalkers, ndim)
 
+        
         assert len(self.prior_high) >= 3, "prior_high length < 3."
         assert len(self.prior_low) >= 3, "prior_low length < 3."
         assert pos.shape == (nwalkers, ndim), f"pos.shape = {pos.shape}, but should be {(nwalkers, ndim)}."
-
+        self.initial_positions = pos
         with Pool() as pool:
             sampler = em.EnsembleSampler(nwalkers, ndim, log_prob_fn=self._logprob,
                                          args=(self.xdata_phase, self.ydata_mag, self.yerr_mag), pool=pool)
             sampler.run_mcmc(pos, nsteps=nsteps, progress=True)
-        self.samp_chain = sampler.chain
-        self.sn_obj.samp_chain = sampler.chain
+        
+        if self.sample_from_log:
+            self.log_chain = sampler.chain
+            sampler_chain = self.convert_to_linear(sampler.chain)
+        self.samp_chain = sampler_chain
+        self.sn_obj.samp_chain = sampler_chain
         self.set_MCMC_bounds_errs(sigma=sigma, burnin=burnin)
+
         return self.samp_chain
 
     def set_MCMC_bounds_errs(self, sigma, burnin=0):
@@ -372,11 +402,11 @@ class Fitter:
             param = self.params[i]
             param_arr = self.samp_chain[:, burnin:, i]
             self.sn_obj.MCMC_sampler[param] = param_arr
-            self.sn_obj.MCMC_fitted_params[param] = np.median(param_arr)
-            data_within_sig = np.percentile(param_arr, sigma * 34)
+            self.sn_obj.MCMC_fitted_params[param] = np.percentile(param_arr, 50)
+            lower_lim = np.percentile(param_arr, 50 - (34 * sigma))
+            upper_lim = np.percentile(param_arr, 50 + (34 * sigma))
 
-            self.sn_obj.MCMC_fitted_errors[param] = [self.sn_obj.MCMC_fitted_params[param] - data_within_sig,
-                                                     self.sn_obj.MCMC_fitted_params[param] + data_within_sig]
+            self.sn_obj.MCMC_fitted_errors[param] = [lower_lim, upper_lim]
 
         return self.sn_obj.MCMC_fitted_params, self.sn_obj.MCMC_fitted_errors
 

@@ -266,7 +266,7 @@ class Plotter:
 
         return fig
 
-    def MCMC_corner(self, burnin=0):
+    def MCMC_corner(self, burnin=0, corner_kwargs=None):
         """Generates corner plot for the posterior distributions of parameter values.
 
         Args:
@@ -285,7 +285,7 @@ class Plotter:
             labels=self.MCMC_labels,
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
-            title_kwargs={"fontsize": 12, "loc": "left"})
+            title_kwargs={"fontsize": 12, "loc": "left"},**corner_kwargs)
         fig.suptitle(f"{self.sn_obj.objname} - {self.sn_obj.display_name}", x=0.7)
 
         

@@ -332,16 +332,13 @@ class Supernova(object):
         Returns:
             array-like: synthetic photometry values
         """
-
         filters = np.array(self.reduced_df['FLT'])
         if len([*args]) == 3:
             re, me, off = args
             ve = None
         else:
             re, me, ve, off = args
-
-        # with io.capture_output() as captured:
-        # mjd date, of - free parameter
+            
         all_mags = np.array([])
         for i in range(len(times)):
             flt = filters[i]
