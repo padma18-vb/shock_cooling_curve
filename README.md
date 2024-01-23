@@ -1,5 +1,7 @@
 # shock-cooling-curve
 ## Introduction
+[![DOI](https://zenodo.org/badge/677079722.svg)](https://zenodo.org/doi/10.5281/zenodo.10557425)
+
 We wrote a research note for this tool here: [arxiv: 2312.15585](https://arxiv.org/abs/2312.15585).
 This package can be used to fit double-peaked supernova light curves using the following shock cooling emission models:
 
