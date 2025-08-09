@@ -37,12 +37,12 @@ os.environ['PYSYN_CDBS']
 ```
 Once you have this setup, you should be good to install `shock_cooling_curve`!
 
-### Using this package
+### Installing this package
 Make sure you follow all the steps in [Before Installation](#before-installation) before pip installing this package. This package is installable via PyPI using pip:
 
 `pip install shock-cooling-curve`
 
-### Contributing
+### Contributing and installing this package (**Preferred**)
 Any code changes, suggestions or improvements are welcome and can be submitted by making a PR! To develop this code, you
 can:
 1. Fork this repository. It will appear in your own GitHub account as https://github.com/<your_username>/shock_cooling_curve.
